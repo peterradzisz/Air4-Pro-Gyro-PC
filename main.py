@@ -272,9 +272,10 @@ def main():
     log.info(f"Renderer initialized: {renderer.width}x{renderer.height} at ({renderer.virt_x},{renderer.virt_y}), hwnd={renderer._hwnd}")
     log.info(f"Target display: {target_disp['name']} ({target_disp['w']}x{target_disp['h']}) at ({target_disp['x']},{target_disp['y']})")
 
-    # NOTE: We do NOT hide the system cursor. It caused double-cursor issues
-    # on the glasses display. Windows cursor is the single source of truth.
-    # renderer._hide_system_cursor()  # DISABLED: causes double cursor
+    # System cursor hiding is done dynamically per-frame based on cursor position.
+    # When cursor is on glasses, we hide system cursor and draw GL cursor at shifted position.
+    # When cursor is on PC monitor, system cursor is shown normally.
+    _cursor_hidden_on_glasses = False
 
     # ── Hotkeys ──────────────────────────────────────────────────────────
     hotkeys = HotkeyManager()
@@ -388,10 +389,11 @@ def main():
             current = settings_manager.get("hide_cursor", False)
             settings_manager.set("hide_cursor", not current)
             if not current:
-                # renderer._hide_system_cursor()  # DISABLED
                 print("  Cursor: HIDDEN")
             else:
-                # renderer._show_system_cursor()  # DISABLED: we no longer hide system cursor
+                if _cursor_hidden_on_glasses:
+                    renderer._show_system_cursor()
+                    _cursor_hidden_on_glasses = False
                 print("  Cursor: VISIBLE")
             log.info(f"Cursor hide: {not current}")
 
@@ -485,8 +487,25 @@ def main():
         slots = [p[1] for p in panels_render]
         renderer.render_panels(slots, offsets, pixel_offset_x, pixel_offset_y, zoom)
 
-        # ── Cursor ──
-        # Cursor: Windows native only, no GL overlay (avoids double cursor)
+        # -- Cursor --
+        # Check if cursor is on the glasses (target) monitor
+        pt = ctypes.wintypes.POINT()
+        user32.GetCursorPos(ctypes.byref(pt))
+        cursor_on_glasses = (target_disp['x'] <= pt.x < target_disp['x'] + target_disp['w'] and
+                             target_disp['y'] <= pt.y < target_disp['y'] + target_disp['h'])
+
+        if cursor_on_glasses:
+            # Hide system cursor and draw GL cursor at shifted position
+            if not _cursor_hidden_on_glasses:
+                renderer._hide_system_cursor()
+                _cursor_hidden_on_glasses = True
+            # Draw GL cursor at the position the user expects (shifted by head tracking)
+            renderer.draw_cursor(pixel_offset_x, pixel_offset_y, zoom)
+        else:
+            # Cursor is on PC monitor: restore system cursor
+            if _cursor_hidden_on_glasses:
+                renderer._show_system_cursor()
+                _cursor_hidden_on_glasses = False
         # ── HUD ──
         if show_hud:
             n_vdd = len(vdd.get_displays()) if vdd else 0
@@ -543,7 +562,8 @@ def main():
 
     # ── Cleanup (cursor first, then VDD, then everything else) ───────────
     print("\nShutting down...")
-    # renderer._show_system_cursor()  # DISABLED: we no longer hide system cursor
+    if _cursor_hidden_on_glasses:
+        renderer._show_system_cursor()
     side_capture_running = False
     side_captures.clear()
     if vdd:

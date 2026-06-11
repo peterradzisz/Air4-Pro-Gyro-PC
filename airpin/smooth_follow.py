@@ -75,9 +75,9 @@ class SpatialTrackingFilter:
         if self.decay < 1.0:
             self.output *= self.decay
 
-        # Soft clamp via tanh
+        # Hard clamp to max offset
         if self.yaw_max_offset > 0:
-            self.output = self.yaw_max_offset * math.tanh(self.output / self.yaw_max_offset)
+            self.output = max(-self.yaw_max_offset, min(self.yaw_max_offset, self.output))
 
         return self.output
 
@@ -96,7 +96,7 @@ class SpatialTrackingFilter:
             self.pitch_output *= self.decay
 
         if self.pitch_max_offset > 0:
-            self.pitch_output = self.pitch_max_offset * math.tanh(self.pitch_output / self.pitch_max_offset)
+            self.pitch_output = max(-self.pitch_max_offset, min(self.pitch_max_offset, self.pitch_output))
 
     def recenter(self):
         """Snap output to zero (hotkey action)."""
