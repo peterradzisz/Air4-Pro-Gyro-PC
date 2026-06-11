@@ -1,14 +1,17 @@
 """
-Screen capture using BitBlt from screen DC.
-Simple, reliable, works with any display configuration.
-No DXGI dependency — no crashes from display topology changes.
+Screen capture with DXGI Desktop Duplication (via dxcam) as primary method
+and BitBlt as fallback. Auto-switches to DXGI at runtime when BitBlt returns
+mostly-black frames (e.g. exclusive fullscreen games).
 """
 
 import ctypes
 import ctypes.wintypes
+import logging
 import threading
 import time
 import numpy as np
+
+log = logging.getLogger(__name__)
 
 user32 = ctypes.windll.user32
 gdi32 = ctypes.windll.gdi32
@@ -18,6 +21,13 @@ WS_EX_TOOLWINDOW = 0x00000080
 SRCCOPY = 0x00CC0020
 BI_RGB = 0
 DIB_RGB_COLORS = 0
+
+# Black-frame detection: how many consecutive black frames before we try DXGI.
+BLACK_FRAME_THRESHOLD = 5
+# Pixel-intensity cutoff for "black" (0-255). Anything below counts as black.
+BLACK_PIXEL_VALUE = 10
+# Sample ratio for the black-frame test (5% of pixels).
+BLACK_SAMPLE_RATIO = 0.05
 
 
 class RECT(ctypes.Structure):
@@ -67,9 +77,9 @@ def list_windows():
     return results
 
 
-def capture_screen(x=0, y=0, w=None, h=None):
+def capture_screen_bitblt(x=0, y=0, w=None, h=None):
     """
-    Capture a screen region as BGRA numpy array.
+    Capture a screen region as BGRA numpy array using GDI BitBlt.
     Returns (w, h, data) or None.
     """
     try:
@@ -104,32 +114,199 @@ def capture_screen(x=0, y=0, w=None, h=None):
 
         data = np.frombuffer(buf.raw, dtype=np.uint8).reshape(h, w, 4).copy()
         return w, h, data
-    except Exception:
+    except Exception as e:
+        log.debug("BitBlt capture failed: %s", e)
         return None
 
 
-class ScreenCapture:
-    """Captures a screen region via BitBlt. Simple and always works."""
+def _find_dxcam_output(target_w, target_h):
+    """
+    Probe dxcam output enumeration to find one matching the target resolution.
+    Returns (device_idx, output_idx) or None.
+    """
+    try:
+        import dxcam
+    except ImportError:
+        return None
+    try:
+        devices = dxcam.output_info()
+    except Exception as e:
+        log.debug("dxcam.output_info() failed: %s", e)
+        return None
+    if not devices:
+        return None
+    for dev_idx, outputs in enumerate(devices):
+        for out_idx, out in enumerate(outputs):
+            res = out.get("resolution") if isinstance(out, dict) else None
+            if res is None and len(out) >= 2:
+                # Older dxcam returns tuples/lists like (w, h)
+                try:
+                    res = (int(out[0]), int(out[1]))
+                except Exception:
+                    continue
+            if res is None:
+                continue
+            ow, oh = int(res[0]), int(res[1])
+            if (ow, oh) == (int(target_w), int(target_h)):
+                return dev_idx, out_idx
+    return None
 
-    def __init__(self, x=0, y=0, width=None, height=None):
+
+def _is_mostly_black(data, threshold=BLACK_PIXEL_VALUE, sample_ratio=BLACK_SAMPLE_RATIO):
+    """
+    Sample a fraction of pixels; return True if >= 95% of them are below threshold.
+    Fast, allocation-free enough for the capture loop.
+    """
+    if data is None or data.size == 0:
+        return True
+    h, w = data.shape[:2]
+    n_pixels = h * w
+    n_samples = max(1, int(n_pixels * sample_ratio))
+    # Deterministic stride sample (no RNG overhead).
+    stride = max(1, n_pixels // n_samples)
+    flat = data.reshape(n_pixels, data.shape[2])[::stride]
+    # Use max of RGB channels (ignore alpha). BGRA layout, so R = index 2.
+    rgb_max = flat[:, :3].max(axis=1)
+    black_frac = (rgb_max < threshold).sum() / rgb_max.size
+    return black_frac >= 0.95
+
+
+class ScreenCapture:
+    """
+    Captures a screen region. Prefers DXGI Desktop Duplication via dxcam
+    (works with exclusive fullscreen games); falls back to BitBlt.
+    Auto-promotes to DXGI at runtime if BitBlt keeps returning black frames.
+    """
+
+    def __init__(self, x=0, y=0, width=None, height=None, monitor_index=0):
         self.x = x
         self.y = y
         self.width = width or user32.GetSystemMetrics(0)
         self.height = height or user32.GetSystemMetrics(1)
+        self.monitor_index = monitor_index
+        self._method = "bitblt"
+        self._dxcam = None
+        self._black_frame_count = 0
+        self._dxgi_tried = False
+
+    # --- DXGI init -------------------------------------------------------
+
+    def _try_init_dxcam(self):
+        """Attempt to create a dxcam camera at this capture's resolution."""
+        if self._dxcam is not None:
+            return True
+        if self._dxgi_tried and self._dxcam is None:
+            # We already tried once this session and it failed; don't spam.
+            return False
+        self._dxgi_tried = True
+        try:
+            import dxcam  # noqa: F401
+        except ImportError:
+            log.info("dxcam not installed; using BitBlt only")
+            return False
+        match = _find_dxcam_output(self.width, self.height)
+        if match is None:
+            log.info("No dxcam output matches %dx%d", self.width, self.height)
+            return False
+        dev_idx, out_idx = match
+        try:
+            import dxcam as _dx
+            self._dxcam = _dx.create(
+                device_idx=dev_idx,
+                output_idx=out_idx,
+                output_color="BGRA",
+                processor_backend="numpy",
+            )
+            self._method = "dxgi"
+            log.info("DXGI capture initialised (dev=%d out=%d %dx%d)",
+                     dev_idx, out_idx, self.width, self.height)
+            return True
+        except Exception as e:
+            log.warning("dxcam.create() failed: %s", e)
+            self._dxcam = None
+            return False
+
+    # --- Lifecycle --------------------------------------------------------
 
     def start(self):
-        # Test grab
-        result = self.grab()
+        """Try DXGI first, then BitBlt. Returns True if either works."""
+        if self._try_init_dxcam():
+            # Smoke-test the DXGI path
+            try:
+                frame = self._dxcam.grab()
+                if frame is not None:
+                    return True
+                log.warning("dxcam.grab() returned None on start; falling back to BitBlt")
+            except Exception as e:
+                log.warning("dxcam.grab() failed on start: %s", e)
+            self._method = "bitblt"
+            self._dxcam = None
+
+        # BitBlt fallback
+        result = capture_screen_bitblt(self.x, self.y, self.width, self.height)
         return result is not None
 
     def grab(self):
-        return capture_screen(self.x, self.y, self.width, self.height)
+        """Return (w, h, bgra_array) or None."""
+        if self._method == "dxgi" and self._dxcam is not None:
+            try:
+                frame = self._dxcam.grab()
+            except Exception as e:
+                log.warning("dxcam.grab() failed mid-run, switching to BitBlt: %s", e)
+                self._method = "bitblt"
+                self._dxcam = None
+                return self.grab()
+            if frame is None:
+                return None
+            # dxcam returns (h, w, 4) BGRA
+            if frame.ndim == 3 and frame.shape[2] == 4:
+                fh, fw = frame.shape[:2]
+                return fw, fh, frame
+            return None
+
+        # BitBlt path. Also check for black frames to auto-promote to DXGI.
+        result = capture_screen_bitblt(self.x, self.y, self.width, self.height)
+        if result is None:
+            self._black_frame_count = 0
+            return None
+        w, h, data = result
+        if _is_mostly_black(data):
+            self._black_frame_count += 1
+            if (self._black_frame_count >= BLACK_FRAME_THRESHOLD
+                    and not (self._dxgi_tried and self._dxcam is None)):
+                log.info("BitBlt returned %d consecutive black frames; promoting to DXGI",
+                         self._black_frame_count)
+                if self._try_init_dxcam():
+                    # Hand back a fresh DXGI frame immediately if we can.
+                    try:
+                        frame = self._dxcam.grab()
+                        if frame is not None and frame.ndim == 3 and frame.shape[2] == 4:
+                            self._black_frame_count = 0
+                            fh, fw = frame.shape[:2]
+                            return fw, fh, frame
+                    except Exception as e:
+                        log.debug("DXGI grab after promote failed: %s", e)
+        else:
+            self._black_frame_count = 0
+        return w, h, data
 
     def reinit(self):
-        pass  # BitBlt doesn't need reinit
+        """Stop and restart the capture pipeline (e.g. after display change)."""
+        self.stop()
+        # Reset black-frame state so the new pipeline gets a fair shot.
+        self._black_frame_count = 0
+        self._dxgi_tried = False
+        self._method = "bitblt"
+        return self.start()
 
     def stop(self):
-        pass
+        if self._dxcam is not None:
+            try:
+                self._dxcam.release()
+            except Exception:
+                pass
+            self._dxcam = None
+        self._method = "bitblt"
 
 
 class WindowSlot:
@@ -152,10 +329,11 @@ class WindowManager:
 
     def __init__(self, capture_fps=30, monitor_index=0, monitor_x=0, monitor_y=0, monitor_w=None, monitor_h=None):
         self.capture = ScreenCapture(
-            x=monitor_x, 
+            x=monitor_x,
             y=monitor_y,
             width=monitor_w or user32.GetSystemMetrics(0),
-            height=monitor_h or user32.GetSystemMetrics(1)
+            height=monitor_h or user32.GetSystemMetrics(1),
+            monitor_index=monitor_index,
         )
         self.slot = WindowSlot("Primary Monitor")
         self.capture_interval = 1.0 / capture_fps
@@ -168,7 +346,8 @@ class WindowManager:
     def start(self):
         if not self.capture.start():
             return False
-        print(f"  Screen capture: {self.capture.width}x{self.capture.height} BitBlt")
+        method = self.capture._method.upper()
+        print(f"  Screen capture: {self.capture.width}x{self.capture.height} {method}")
         self._running = True
         self._thread = threading.Thread(target=self._capture_loop, daemon=True)
         self._thread.start()
