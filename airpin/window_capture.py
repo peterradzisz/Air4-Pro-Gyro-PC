@@ -121,34 +121,26 @@ def capture_screen_bitblt(x=0, y=0, w=None, h=None):
 
 def _find_dxcam_output(target_w, target_h):
     """
-    Probe dxcam output enumeration to find one matching the target resolution.
+    Probe dxcam by creating cameras and checking grabbed frame resolution.
     Returns (device_idx, output_idx) or None.
     """
     try:
         import dxcam
     except ImportError:
         return None
-    try:
-        devices = dxcam.output_info()
-    except Exception as e:
-        log.debug("dxcam.output_info() failed: %s", e)
-        return None
-    if not devices:
-        return None
-    for dev_idx, outputs in enumerate(devices):
-        for out_idx, out in enumerate(outputs):
-            res = out.get("resolution") if isinstance(out, dict) else None
-            if res is None and len(out) >= 2:
-                # Older dxcam returns tuples/lists like (w, h)
-                try:
-                    res = (int(out[0]), int(out[1]))
-                except Exception:
+    for dev in range(4):
+        for out in range(4):
+            try:
+                c = dxcam.create(device_idx=dev, output_idx=out,
+                                 output_color="BGRA", processor_backend="numpy")
+                if c is None:
                     continue
-            if res is None:
+                frame = c.grab()
+                c.release()
+                if frame is not None and frame.shape[1] == target_w and frame.shape[0] == target_h:
+                    return (dev, out)
+            except Exception:
                 continue
-            ow, oh = int(res[0]), int(res[1])
-            if (ow, oh) == (int(target_w), int(target_h)):
-                return dev_idx, out_idx
     return None
 
 

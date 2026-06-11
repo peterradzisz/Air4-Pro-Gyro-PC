@@ -234,7 +234,7 @@ def main():
         print("  WARNING: No frame captured yet, continuing anyway")
 
     # ── Side panel captures (background thread) ─────────────────────────
-    from airpin.window_capture import WindowSlot, capture_screen
+    from airpin.window_capture import WindowSlot, capture_screen_bitblt
     import threading
     side_captures = {}  # vdd_index -> (info_dict, WindowSlot)
     side_capture_running = True
@@ -242,7 +242,7 @@ def main():
     def side_capture_loop():
         while side_capture_running:
             for vdd_idx, (info, slot) in list(side_captures.items()):
-                result = capture_screen(info['x'], 0, info['width'], info['height'])
+                result = capture_screen_bitblt(info['x'], 0, info['width'], info['height'])
                 if result is not None:
                     w, h, data = result
                     slot.width = w
