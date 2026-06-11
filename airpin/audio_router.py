@@ -77,9 +77,9 @@ class AudioRouter:
         out_info = sd.query_devices(self._output_device)
         in_info = sd.query_devices(self._input_device) if self._input_device is not None else None
 
-        print(f"  Audio: Output → {out_info['name']}")
+        print(f"  Audio: Output -> {out_info['name']}")
         if in_info:
-            print(f"  Audio: Input  ← {in_info['name']}")
+            print(f"  Audio: Input  <- {in_info['name']}")
 
         self._running = True
         self._thread = threading.Thread(target=self._stream_loop, daemon=True)

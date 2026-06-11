@@ -29,6 +29,7 @@ import os
 import time
 import math
 import argparse
+import logging
 
 import numpy as np
 import pygame
@@ -38,10 +39,103 @@ import config
 from airpin.imu_tracker import ImuTracker
 from airpin.window_capture import WindowManager
 from airpin.spatial_renderer import SpatialRenderer
-from airpin.smooth_follow import SmoothFollow
+from airpin.smooth_follow import SpatialTrackingFilter
 from airpin.hotkey_manager import HotkeyManager
 from airpin.audio_router import AudioRouter
 from airpin.virtual_display import VirtualDisplayManager
+from airpin import settings_manager
+from airpin.settings_panel import SettingsPanel, PANEL_X, PANEL_Y
+from OpenGL.GL import *
+
+# Module-level Windows API access
+user32 = ctypes.windll.user32
+
+# Logging setup
+log_path = os.path.join(os.path.dirname(__file__), 'airpin.log')
+logging.basicConfig(
+    filename=log_path,
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%H:%M:%S'
+)
+log = logging.getLogger('airpin')
+
+
+def enumerate_displays():
+    """List all active monitors with their positions and sizes.
+    Returns list of dicts: {index, x, y, w, h, name, is_primary}
+    """
+    import ctypes
+    import ctypes.wintypes
+
+    results = []
+    
+    # Use EnumDisplayMonitors for accurate monitor rects
+    MONITORENUMPROC = ctypes.WINFUNCTYPE(
+        ctypes.c_int,
+        ctypes.c_void_p,  # hMonitor
+        ctypes.c_void_p,  # hdcMonitor
+        ctypes.POINTER(ctypes.wintypes.RECT),  # lprcMonitor
+        ctypes.wintypes.LPARAM,  # dwData
+    )
+    
+    monitors_found = []
+    
+    def _enum_callback(hMonitor, hdcMonitor, lprcMonitor, dwData):
+        rect = lprcMonitor.contents
+        monitors_found.append({
+            'x': rect.left,
+            'y': rect.top,
+            'w': rect.right - rect.left,
+            'h': rect.bottom - rect.top,
+        })
+        return 1  # continue
+    
+    callback = MONITORENUMPROC(_enum_callback)
+    user32.EnumDisplayMonitors(None, None, callback, 0)
+    
+    # Get device names via EnumDisplayDevicesW
+    class DISPLAY_DEVICE(ctypes.Structure):
+        _fields_ = [
+            ('cb', ctypes.wintypes.DWORD),
+            ('DeviceName', ctypes.c_wchar * 32),
+            ('DeviceString', ctypes.c_wchar * 128),
+            ('StateFlags', ctypes.wintypes.DWORD),
+            ('DeviceID', ctypes.c_wchar * 128),
+            ('DeviceKey', ctypes.c_wchar * 128),
+        ]
+    
+    device_names = {}
+    for i in range(20):
+        dev = DISPLAY_DEVICE()
+        dev.cb = ctypes.sizeof(DISPLAY_DEVICE)
+        if user32.EnumDisplayDevicesW(None, i, ctypes.byref(dev), 0):
+            if dev.StateFlags & 2:  # DISPLAY_DEVICE_ATTACHED
+                gpu_name = dev.DeviceString
+                # Get monitor for this device
+                mon_dev = DISPLAY_DEVICE()
+                mon_dev.cb = ctypes.sizeof(DISPLAY_DEVICE)
+                if user32.EnumDisplayDevicesW(dev.DeviceName, 0, ctypes.byref(mon_dev), 0):
+                    gpu_name = mon_dev.DeviceString or dev.DeviceString
+                device_names[len(device_names)] = f"{dev.DeviceName} ({gpu_name})"
+    
+    primary_w = user32.GetSystemMetrics(0)
+    primary_h = user32.GetSystemMetrics(1)
+    
+    for idx, m in enumerate(monitors_found):
+        is_primary = (m['x'] == 0 and m['y'] == 0 and m['w'] == primary_w and m['h'] == primary_h)
+        name = device_names.get(idx, f"Monitor {idx}")
+        results.append({
+            'index': idx,
+            'x': m['x'],
+            'y': m['y'],
+            'w': m['w'],
+            'h': m['h'],
+            'name': name,
+            'is_primary': is_primary,
+        })
+    
+    return results
 
 
 def main():
@@ -57,7 +151,34 @@ def main():
         config.HEAD_TRACKING_SENSITIVITY = args.sensitivity
     capture_fps = args.fps or config.WINDOW_CAPTURE_FPS
 
+    log.info("=" * 60)
+    log.info("AirPin starting...")
+    log.info(f"Args: {args}")
+
+    # -- Enumerate displays --
+    displays = enumerate_displays()
+    target_mon = settings_manager.get("target_monitor", 0)
+    print(f"  Found {len(displays)} display(s):")
+    for d in displays:
+        marker = " <-- target" if d['index'] == target_mon else ""
+        print(f"    [{d['index']}] {d['name']} @ ({d['x']},{d['y']}) {d['w']}x{d['h']}{' (primary)' if d['is_primary'] else ''}{marker}")
+    
+    # Validate target_monitor
+    if target_mon >= len(displays):
+        print(f"  WARNING: target_monitor={target_mon} not found, falling back to 0")
+        target_mon = 0
+
+    target_disp = displays[target_mon]
+    log.info(f"Displays found: {len(displays)}, target_monitor={target_mon}")
+    for d in displays:
+        log.info(f"  [{d['index']}] {d['name']} @ ({d['x']},{d['y']}) {d['w']}x{d['h']}")
+
     # ── IMU tracker ──────────────────────────────────────────────────────
+    # Apply persisted settings to config
+    config.PITCH_ENABLED = settings_manager.get('pitch_enabled', False)
+    config.INVERT_YAW = settings_manager.get('invert_yaw', False)
+    config.INVERT_PITCH = settings_manager.get('invert_pitch', False)
+
     tracker = None
     if not args.no_imu:
         print("Connecting to RayNeo Air 4 Pro...")
@@ -71,6 +192,9 @@ def main():
             print(f"  WARNING: IMU failed: {e}")
             tracker = None
 
+    if tracker:
+        log.info("IMU tracker started and recentered")
+
     # ── Virtual Display Manager (Parsec VDD) ─────────────────────────────
     vdd = VirtualDisplayManager()
     print("Starting Virtual Display Manager...")
@@ -80,7 +204,14 @@ def main():
 
     # ── Screen capture (DXGI — primary monitor) ──────────────────────────
     print(f"Starting screen capture (monitor {args.monitor})...")
-    win_mgr = WindowManager(capture_fps=capture_fps, monitor_index=args.monitor)
+    win_mgr = WindowManager(
+        capture_fps=capture_fps,
+        monitor_index=args.monitor,
+        monitor_x=target_disp['x'],
+        monitor_y=target_disp['y'],
+        monitor_w=target_disp['w'],
+        monitor_h=target_disp['h'],
+    )
     if not win_mgr.start():
         print("ERROR: Screen capture failed.")
         if vdd:
@@ -88,6 +219,8 @@ def main():
         if tracker:
             tracker.stop()
         return
+
+    log.info(f"Screen capture started: {win_mgr.capture.width}x{win_mgr.capture.height}")
 
     # Wait for first frame
     print("  Waiting for first frame...")
@@ -129,8 +262,19 @@ def main():
             print("  Tip: Set 'SmartGlasses' as audio output in Windows Settings")
 
     # ── Renderer ─────────────────────────────────────────────────────────
-    renderer = SpatialRenderer()
+    renderer = SpatialRenderer(
+        target_x=target_disp['x'],
+        target_y=target_disp['y'],
+        target_w=target_disp['w'],
+        target_h=target_disp['h'],
+    )
     renderer.init()
+    log.info(f"Renderer initialized: {renderer.width}x{renderer.height} at ({renderer.virt_x},{renderer.virt_y}), hwnd={renderer._hwnd}")
+    log.info(f"Target display: {target_disp['name']} ({target_disp['w']}x{target_disp['h']}) at ({target_disp['x']},{target_disp['y']})")
+
+    # NOTE: We do NOT hide the system cursor. It caused double-cursor issues
+    # on the glasses display. Windows cursor is the single source of truth.
+    # renderer._hide_system_cursor()  # DISABLED: causes double cursor
 
     # ── Hotkeys ──────────────────────────────────────────────────────────
     hotkeys = HotkeyManager()
@@ -147,6 +291,7 @@ def main():
     print("  Left     Add display L   Right  Add display R")
     print("  +/-      Zoom            0   Zoom reset")
     print("  H        HUD            Shift+F  Focus game")
+    print("  S        Settings panel")
     print("  Q        Quit (removes virtual displays)")
     print()
 
@@ -156,40 +301,99 @@ def main():
     show_hud = True
     tracking_enabled = True
     zoom = config.ZOOM_DEFAULT
-    follow = SmoothFollow()
+    ppd_init = target_disp['w'] / math.radians(config.FOV_HORIZONTAL_DEG)
+    yaw_range = settings_manager.get('yaw_range', 0.15)
+    deadzone = settings_manager.get('deadzone', 0.08)
+    resp = settings_manager.get('responsiveness', 0.40)
+    follow = SpatialTrackingFilter(ppd_init, target_disp['w'],
+                                    yaw_max_offset_frac=yaw_range,
+                                    pitch_max_offset_frac=settings_manager.get('pitch_range', 0.10),
+                                    speed_dead=deadzone,
+                                    speed_full=0.40 + resp * 0.60)
+    settings_panel = SettingsPanel()
+    settings_panel.update_monitors(displays)
     last_time = time.time()
+    frame_count = 0
+    _prev_mouse_down = False
 
     while running:
         pygame.event.pump()
         triggered = hotkeys.poll()
 
+        # Live-sync settings to config (so renderer reads current values)
+        config.PITCH_ENABLED = settings_manager.get('pitch_enabled', False)
+        config.INVERT_YAW = settings_manager.get('invert_yaw', False)
+        config.INVERT_PITCH = settings_manager.get('invert_pitch', False)
+
+        if triggered:
+            log.info(f"Hotkeys triggered: {triggered}")
+
+        frame_count += 1
+        if frame_count % 600 == 0:
+            has_frame = win_mgr.slot.pixel_data is not None
+            log.info(f"Loop OK - px_off={pixel_offset_x:.0f}px, zoom={zoom}, tracking={tracking_enabled}, fps={clock.get_fps():.0f}, has_frame={has_frame}")
+
         if 'quit' in triggered:
+            log.info("Quit requested")
             running = False
         if 'recenter' in triggered and tracker:
             tracker.recenter()
-            follow.reset()
+            follow.recenter()
             print("  Recentered!")
+            log.info("Recentered")
         if 'toggle_tracking' in triggered:
             tracking_enabled = not tracking_enabled
             if tracking_enabled and tracker:
                 tracker.recenter()
             print(f"  Tracking: {'ON' if tracking_enabled else 'OFF'}")
+            log.info(f"Tracking: {'ON' if tracking_enabled else 'OFF'}")
         if 'toggle_hud' in triggered:
             show_hud = not show_hud
+            log.info(f"HUD: {'ON' if show_hud else 'OFF'}")
         if 'invert_yaw' in triggered:
             config.INVERT_YAW = not config.INVERT_YAW
+            settings_manager.set('invert_yaw', config.INVERT_YAW)
             print(f"  Yaw invert: {config.INVERT_YAW}")
+            log.info(f"Yaw invert: {config.INVERT_YAW}")
         if 'focus_game' in triggered:
             renderer.release_focus_once()
+            log.info("Focus released to game")
         if 'zoom_in' in triggered:
             zoom = min(zoom + config.ZOOM_STEP, config.ZOOM_MAX)
+            log.info(f"Zoom: {zoom}")
         if 'zoom_out' in triggered:
             zoom = max(zoom - config.ZOOM_STEP, config.ZOOM_MIN)
+            log.info(f"Zoom: {zoom}")
         if 'zoom_reset' in triggered:
             zoom = config.ZOOM_DEFAULT
+            log.info(f"Zoom reset: {zoom}")
         if 'toggle_pitch' in triggered:
             config.PITCH_ENABLED = not config.PITCH_ENABLED
+            settings_manager.set('pitch_enabled', config.PITCH_ENABLED)
             print(f"  Pitch: {'ON' if config.PITCH_ENABLED else 'OFF'}")
+            log.info(f"Pitch: {'ON' if config.PITCH_ENABLED else 'OFF'}")
+        if 'toggle_settings' in triggered:
+            settings_panel.toggle()
+            # Toggle mouse click-through: when panel is visible, remove WS_EX_TRANSPARENT so clicks reach us
+            if renderer._hwnd:
+                import win32gui, win32con
+                ex_style = win32gui.GetWindowLong(renderer._hwnd, win32con.GWL_EXSTYLE)
+                if settings_panel.visible:
+                    ex_style &= ~win32con.WS_EX_TRANSPARENT  # allow clicks
+                else:
+                    ex_style |= win32con.WS_EX_TRANSPARENT   # pass through
+                win32gui.SetWindowLong(renderer._hwnd, win32con.GWL_EXSTYLE, ex_style)
+            log.info(f"Settings panel: {'shown' if settings_panel.visible else 'hidden'} (click-through: {'OFF' if settings_panel.visible else 'ON'})")
+        if 'toggle_cursor' in triggered:
+            current = settings_manager.get("hide_cursor", False)
+            settings_manager.set("hide_cursor", not current)
+            if not current:
+                # renderer._hide_system_cursor()  # DISABLED
+                print("  Cursor: HIDDEN")
+            else:
+                # renderer._show_system_cursor()  # DISABLED: we no longer hide system cursor
+                print("  Cursor: VISIBLE")
+            log.info(f"Cursor hide: {not current}")
 
         # ── Add virtual displays ──
         if ('panel_left' in triggered or 'panel_right' in triggered) and vdd:
@@ -218,19 +422,39 @@ def main():
         last_time = now
 
         if tracker and tracking_enabled and tracker.imu_count > 0:
-            raw_yaw, raw_pitch, roll = tracker.get_orientation()
-            # Get gyro magnitude for movement detection
-            gc = tracker._gyro_bias  # just to get the corrected gyro
-            import numpy as np
-            raw_gyro = np.array([0.0, 0.0, 0.0])
-            if hasattr(tracker, '_last_gyro_mag'):
-                gyro_mag = tracker._last_gyro_mag
+            gyro_mag = tracker.get_gyro_magnitude()
+            # Get raw gyro angular velocities (rad/s) -- bypass complementary filter
+            # Air 4 Pro axis mapping: gx=[0] pitch, gy=[1] yaw, gz=[2] roll
+            raw_gx, raw_gy, raw_gz = tracker.get_raw_gyro()
+            # Update filter params from settings
+            follow.yaw_max_offset = settings_manager.get('yaw_range', 0.15) * target_disp['w']
+            follow.pitch_max_offset = settings_manager.get('pitch_range', 0.10) * target_disp['h']
+            follow.speed_dead = settings_manager.get('deadzone', 0.08)
+            follow.speed_full = 0.40 + settings_manager.get('responsiveness', 0.40) * 0.60
+            follow.gain = settings_manager.get('gain', 0.40)
+            follow.decay = settings_manager.get('decay', 1.0)
+            # Yaw: raw gyro[1] = yaw angular velocity (rad/s)
+            # Use per-axis speed for gate: yaw gate uses |gy| only
+            yaw_sign = -1.0 if config.INVERT_YAW else 1.0
+            yaw_speed = abs(raw_gy)
+            pixel_offset_x = follow.update(yaw_sign * raw_gy, yaw_speed)
+            # Pitch: raw gyro[0] = pitch angular velocity (rad/s)
+            if settings_manager.get('pitch_enabled', False):
+                pitch_sign = -1.0 if config.INVERT_PITCH else 1.0
+                pitch_speed = abs(raw_gx)
+                follow.update_pitch(pitch_sign * raw_gx, pitch_speed)
+                pixel_offset_y = follow.pitch_output
             else:
-                gyro_mag = 0.0
-            yaw = follow.update(raw_yaw, dt_ms, gyro_mag)
-            pitch = raw_pitch if config.PITCH_ENABLED else 0.0
+                pixel_offset_y = 0.0
+            # Diagnostic
+            if frame_count % 600 == 0:
+                resp_val = follow._responsiveness(gyro_mag)
+                log.info(f"IMU diag: gy={raw_gy:+.4f} gx={raw_gx:+.4f} px_off={pixel_offset_x:.0f}px gain={follow.gain:.2f} decay={follow.decay:.4f} dead={settings_manager.get('deadzone', 0.08):.2f} mag={gyro_mag:.4f} resp={resp_val:.3f} yaw_out={follow.output:.0f} imu={tracker.imu_count}")
         else:
-            yaw, pitch, roll = 0.0, 0.0, 0.0
+            pixel_offset_x, pixel_offset_y = 0.0, 0.0
+            # Diagnostic: why is head tracking not active?
+            if frame_count % 600 == 0 and tracker is not None:
+                log.info(f"IMU inactive: tracking_enabled={tracking_enabled}, imu_count={tracker.imu_count if tracker else 'no tracker'}, connected={tracker.connected if tracker else 'N/A'}")
 
         # ── Build panel list: main + virtual displays ──
         panels_render = []
@@ -259,16 +483,10 @@ def main():
         # ── Render all panels ──
         offsets = [p[0] for p in panels_render]
         slots = [p[1] for p in panels_render]
-        renderer.render_panels(slots, offsets, yaw, pitch, zoom)
+        renderer.render_panels(slots, offsets, pixel_offset_x, pixel_offset_y, zoom)
 
         # ── Cursor ──
-        ppd_rad = renderer.primary_width / math.radians(config.FOV_HORIZONTAL_DEG)
-        yaw_sign = -1.0 if config.INVERT_YAW else 1.0
-        pitch_sign = -1.0 if config.INVERT_PITCH else 1.0
-        cur_offset_x = yaw_sign * yaw * ppd_rad
-        cur_offset_y = pitch_sign * pitch * ppd_rad
-        renderer.draw_cursor(cur_offset_x, cur_offset_y, zoom)
-
+        # Cursor: Windows native only, no GL overlay (avoids double cursor)
         # ── HUD ──
         if show_hud:
             n_vdd = len(vdd.get_displays()) if vdd else 0
@@ -276,19 +494,56 @@ def main():
                 'tracking': tracking_enabled,
                 'pitch_enabled': config.PITCH_ENABLED,
                 'zoom': zoom,
-                'yaw': math.degrees(yaw),
-                'pitch': math.degrees(pitch),
+                'yaw': pixel_offset_x,
+                'pitch': pixel_offset_y,
                 'cap_w': win_mgr.capture.width,
                 'cap_h': win_mgr.capture.height,
                 'panels': [f"Main"] + [f"VDD-{d[2]}" for d in (vdd.get_displays() if vdd else [])],
             })
+
+        # -- Settings panel mouse handling --
+        if settings_panel.visible:
+            # Get actual cursor position (GetCursorPos works even with transparent windows)
+            pt = ctypes.wintypes.POINT()
+            user32.GetCursorPos(ctypes.byref(pt))
+            panel_mx = pt.x - PANEL_X
+            panel_my = pt.y - PANEL_Y
+            mouse_buttons = pygame.mouse.get_pressed()
+            mouse_down_now = mouse_buttons[0]
+            clicked = mouse_down_now and not _prev_mouse_down  # edge detection: only first frame
+            settings_panel.handle_mouse(panel_mx, panel_my, clicked)
+            if not mouse_down_now:
+                settings_panel.handle_mouse_up()
+            _prev_mouse_down = mouse_down_now
+
+        # -- Settings panel render --
+        if settings_panel.visible:
+            panel_result = settings_panel.render()
+            if panel_result:
+                surf, px, py, pw, ph = panel_result
+                data = pygame.image.tostring(surf, "RGBA", True)
+                if settings_panel._gl_tex is None:
+                    settings_panel._gl_tex = glGenTextures(1)
+                glBindTexture(GL_TEXTURE_2D, settings_panel._gl_tex)
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pw, ph, 0,
+                             GL_RGBA, GL_UNSIGNED_BYTE, data)
+                glEnable(GL_TEXTURE_2D)
+                glColor4f(1, 1, 1, 1)
+                glBegin(GL_QUADS)
+                glTexCoord2f(0, 1); glVertex2f(px, py)
+                glTexCoord2f(1, 1); glVertex2f(px + pw, py)
+                glTexCoord2f(1, 0); glVertex2f(px + pw, py + ph)
+                glTexCoord2f(0, 0); glVertex2f(px, py + ph)
+                glEnd()
 
         pygame.display.flip()
         clock.tick(config.TARGET_FPS)
 
     # ── Cleanup (cursor first, then VDD, then everything else) ───────────
     print("\nShutting down...")
-    renderer._show_system_cursor()
+    # renderer._show_system_cursor()  # DISABLED: we no longer hide system cursor
     side_capture_running = False
     side_captures.clear()
     if vdd:
@@ -310,6 +565,7 @@ if __name__ == "__main__":
         print(f"\nCRASH: {e}")
         import traceback
         traceback.print_exc()
+        logging.critical(f"CRASH: {e}", exc_info=True)
     finally:
         # ALWAYS restore cursor + remove virtual displays
         try:

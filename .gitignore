@@ -4,3 +4,7 @@ __pycache__/
 *.exe
 .env
 test_output.txt
+
+# Runtime/local
+.omo/
+nul

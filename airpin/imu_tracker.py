@@ -6,6 +6,9 @@ Reads gyro/accel via RayNeoSDK.dll, fuses into yaw/pitch/roll.
 import os
 import ctypes
 import threading
+import time
+import logging
+import math
 import numpy as np
 from ctypes import (
     c_uint8, c_uint16, c_uint32, c_uint64, c_int, c_float,
@@ -119,6 +122,10 @@ class ImuTracker:
         self._output_yaw = 0.0
         self._still_counter = 0
 
+        # Thread-safe gyro magnitude for smooth follow
+        self._last_gyro_mag = 0.0
+        self._last_raw_gyro = np.zeros(3)
+
     def _find_dll(self):
         root = os.path.dirname(os.path.dirname(__file__))  # project root
         candidates = [
@@ -172,10 +179,29 @@ class ImuTracker:
             s.Rayneo_Destroy(self.ctx)
             raise RuntimeError("Rayneo_Start failed (glasses not connected?)")
         s.Rayneo_EnableImu(self.ctx)
+
+        # Additional init from reference implementation (verncat/RayNeo-Air-3S-Pro-OpenVR examples)
+        # These calls may be needed to fully activate the device
+        if hasattr(s, 'Rayneo_RequestDeviceInfo'):
+            s.Rayneo_RequestDeviceInfo.restype = c_int
+            s.Rayneo_RequestDeviceInfo.argtypes = [c_void_p]
+            rc_info = s.Rayneo_RequestDeviceInfo(self.ctx)
+            print(f"  SDK RequestDeviceInfo: rc={rc_info}")
+
         self.connected = True
         self._running = True
         self._thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._thread.start()
+
+        # Wait for first IMU sample (up to 3 seconds)
+        print("  Waiting for IMU data...")
+        for i in range(30):
+            if self._imu_count > 0:
+                print(f"  Got first IMU sample after {i*0.1:.1f}s")
+                break
+            time.sleep(0.1)
+        else:
+            print(f"  WARNING: No IMU data after 3s (imu_count={self._imu_count}, connected={self.connected})")
 
         # Ensure SDK cleanup on any exit (crash, Ctrl+C, sys.exit)
         import atexit
@@ -183,13 +209,33 @@ class ImuTracker:
 
     def _poll_loop(self):
         evt = RAYNEO_Event()
+        last_data_count = 0
+        stall_start = None
+        reconnect_attempts = 0
 
         while self._running:
-            rc = self.sdk.Rayneo_PollEvent(self.ctx, byref(evt), 5)
+            rc = self.sdk.Rayneo_PollEvent(self.ctx, byref(evt), 100)
             if rc != 0:
+                # Check for stall: no IMU data for too long
+                if self._imu_count == last_data_count:
+                    if stall_start is None:
+                        stall_start = time.monotonic()
+                    elif time.monotonic() - stall_start > 3.0:
+                        reconnect_attempts += 1
+                        print(f"  IMU stalled ({reconnect_attempts}x), reconnecting...")
+                        logging.warning(f"IMU stalled after {self._imu_count} samples, reconnecting (attempt {reconnect_attempts})")
+                        self._reconnect()
+                        stall_start = None
+                else:
+                    last_data_count = self._imu_count
+                    stall_start = None
+                    reconnect_attempts = 0
                 continue
             if evt.type == EVT_DETACHED:
                 self.connected = False
+                print("  IMU: device detached, reconnecting...")
+                logging.warning("IMU device detached, reconnecting")
+                self._reconnect()
                 continue
             if evt.type != EVT_IMU or not evt.data.imu.valid:
                 continue
@@ -221,6 +267,17 @@ class ImuTracker:
             # Save gyro magnitude for movement detection
             self._last_gyro_mag = float(np.sqrt(np.sum(gc * gc)))
 
+            self._last_raw_gyro = gyro.copy()
+            # Track peak gyro values for axis identification
+            if not hasattr(self, '_peak_gyro'):
+                self._peak_gyro = [0.0, 0.0, 0.0]
+            for i in range(3):
+                if abs(gc[i]) > abs(self._peak_gyro[i]):
+                    self._peak_gyro[i] = gc[i]
+            # Gyro axis diagnostic (every 500 samples = ~1 sec)
+            if self._imu_count % 500 == 0:
+                logging.info(f"GYRO_DIAG: gx={gc[0]:+.4f} gy={gc[1]:+.4f} gz={gc[2]:+.4f} | peaks: [{self._peak_gyro[0]:+.4f}, {self._peak_gyro[1]:+.4f}, {self._peak_gyro[2]:+.4f}] | yaw={math.degrees(self._raw_yaw):+.1f} pitch={math.degrees(self._raw_pitch):+.1f} roll={math.degrees(self._raw_roll):+.1f} | mag={self._last_gyro_mag:.4f}")
+
             # ── Compute dt ──
             dt = 0.002
             if self._last_tick > 0 and s.tick > self._last_tick:
@@ -232,9 +289,9 @@ class ImuTracker:
             gx, gy, gz = gc
 
             # ── Complementary filter ──
-            pitch_gyro = self._raw_pitch + gx * dt
-            roll_gyro = self._raw_roll + gz * dt
-            yaw_gyro = self._raw_yaw + gy * dt
+            pitch_gyro = self._raw_pitch + gx * dt  # gx confirmed working for pitch
+            yaw_gyro   = self._raw_yaw   + gy * dt  # gy -> try yaw again (gz is dead on Air 4 Pro)
+            roll_gyro  = self._raw_roll  + gz * dt  # gz=0 on Air 4 Pro
 
             ax, ay, az = accel
             g_norm = np.sqrt(ax*ax + ay*ay + az*az)
@@ -258,6 +315,46 @@ class ImuTracker:
                 rd = (self._raw_roll - self._roll + np.pi) % (2*np.pi) - np.pi
                 self._roll += rd * a
 
+    def _reconnect(self):
+        """Destroy and recreate the SDK connection when IMU stalls."""
+        try:
+            self.sdk.Rayneo_DisableImu(self.ctx)
+        except Exception:
+            pass
+        try:
+            self.sdk.Rayneo_Stop(self.ctx)
+        except Exception:
+            pass
+        try:
+            self.sdk.Rayneo_Destroy(self.ctx)
+        except Exception:
+            pass
+
+        time.sleep(0.5)
+
+        try:
+            self.ctx = c_void_p()
+            if self.sdk.Rayneo_Create(byref(self.ctx)) != 0:
+                print("  Reconnect: Create failed")
+                return
+            self.sdk.Rayneo_SetTargetVidPid(self.ctx, config.RAYNEO_VID, config.RAYNEO_PID)
+            if self.sdk.Rayneo_Start(self.ctx, 0) != 0:
+                print("  Reconnect: Start failed")
+                self.sdk.Rayneo_Destroy(self.ctx)
+                self.ctx = c_void_p()
+                return
+            self.sdk.Rayneo_EnableImu(self.ctx)
+            if hasattr(self.sdk, 'Rayneo_RequestDeviceInfo'):
+                self.sdk.Rayneo_RequestDeviceInfo(self.ctx)
+            self.connected = True
+            self._cf_initialized = False  # Re-init orientation on first new sample
+            self._last_tick = 0
+            print("  IMU reconnected successfully")
+            logging.info("IMU reconnected successfully")
+        except Exception as e:
+            print(f"  Reconnect failed: {e}")
+            logging.warning(f"IMU reconnect failed: {e}")
+
     def get_orientation(self):
         """Get raw (yaw, pitch, roll) in radians, relative to reference."""
         with self._lock:
@@ -265,6 +362,16 @@ class ImuTracker:
             dp = self._pitch - self._ref_pitch
             dr = (self._roll - self._ref_roll + np.pi) % (2*np.pi) - np.pi
             return (dy, dp, dr)
+
+    def get_gyro_magnitude(self):
+        """Thread-safe getter for gyro magnitude (used by SmoothFollow)."""
+        with self._lock:
+            return self._last_gyro_mag
+
+    def get_raw_gyro(self):
+        """Thread-safe getter for latest raw gyro values (gx, gy, gz)."""
+        with self._lock:
+            return (self._last_raw_gyro[0], self._last_raw_gyro[1], self._last_raw_gyro[2])
 
     def recenter(self):
         with self._lock:

@@ -1,108 +1,105 @@
 """
-Smooth Follow for AR head tracking.
+Spatial Tracking Filter for AR head tracking.
 
-Simple approach:
-- Track head 1:1 (no lag, no delay)
-- When head is STILL for 2+ seconds, slowly correct accumulated drift
-- Output is frozen when head is still (no jitter from micro-movements)
+Tracks DELTA yaw (rate of change), not absolute position.
+This prevents yaw drift from pushing the image off-screen.
 
-This gives instant response to intentional head turns while masking
-gyroscope drift during stationary periods.
+Pipeline: delta_yaw -> speed-gated integrator -> soft clamp -> output
 """
 
 import math
-import time
+from airpin import settings_manager
 
 
-# Hysteresis thresholds for movement detection (rad/s)
-# Start tracking: gyro must exceed this (filters pulse/sway ~1-2 deg/s)
-MOVE_START_RAD = 0.052  # ~3.0 deg/s
-# Stop tracking: gyro must drop below this (lower = smoother stop)
-MOVE_STOP_RAD = 0.015   # ~0.9 deg/s
+class SpatialTrackingFilter:
+    def __init__(self, pixels_per_radian, screen_width,
+                 yaw_max_offset_frac=0.15,    # max horizontal shift as fraction of screen width
+                 pitch_max_offset_frac=0.10,   # max vertical shift as fraction of screen height
+                 speed_dead=0.08,             # rad/s - below this, delta ignored (deadzone)
+                 speed_full=0.40,             # rad/s - full tracking above this
+                 gain=0.30):                  # base responsiveness multiplier
 
-# How long head must be still before drift correction starts
-STILL_TIME_SEC = 2.0
+        self.ppr = pixels_per_radian
+        self.screen_width = screen_width
+        self.yaw_max_offset = yaw_max_offset_frac * screen_width
+        self.pitch_max_offset = pitch_max_offset_frac * screen_width  # overridden at runtime with screen_height
 
-# Drift correction speed (radians per second toward zero offset)
-DRIFT_CORRECTION_SPEED = 0.5  # deg/sec
+        self.speed_dead = speed_dead
+        self.speed_full = speed_full
+        self.gain = gain
+        self.decay = 1.0
 
+        self.output = 0.0
+        self.pitch_output = 0.0
+        # No _last_yaw/_last_pitch needed -- using raw gyro directly
 
-# Consecutive frames to confirm state change
-MOVE_START_CONFIRM = 2   # frames above START threshold to begin tracking
-MOVE_STOP_CONFIRM = 15   # frames below STOP threshold to freeze
+    def _responsiveness(self, gyro_speed):
+        """Smoothstep: 0 at speed_dead -> 1.0 at speed_full."""
+        if gyro_speed <= self.speed_dead:
+            return 0.0
+        if gyro_speed >= self.speed_full:
+            return 1.0
+        t = (gyro_speed - self.speed_dead) / (self.speed_full - self.speed_dead)
+        s = t * t * (3.0 - 2.0 * t)
+        return s
 
-class SmoothFollow:
-    def __init__(self):
-        self._ref_yaw = 0.0
-        self._output = 0.0
-        self._is_moving = False
-        self._still_start = 0.0
-        self._last_raw = 0.0
-        self._move_count = 0       # consecutive frames above threshold
-
-    def reset(self, current_yaw=0.0):
-        self._ref_yaw = current_yaw
-        self._output = 0.0
-        self._is_moving = False
-        self._still_start = time.monotonic()
-        self._last_raw = current_yaw
-        self._move_count = 0
-
-    def update(self, raw_yaw, dt_ms, gyro_magnitude=0.0):
+    def update(self, yaw_angular_vel, gyro_speed, dt=1/60):
         """
-        raw_yaw: current head yaw from IMU (radians, relative to reference)
-        dt_ms: milliseconds since last update
-        gyro_magnitude: current gyro speed (rad/s) — used to detect movement
+        Per-frame update (~60Hz).
+        Uses raw gyro angular velocity directly.
 
-        Returns: yaw offset to apply to display (radians)
+        The output accumulates head movement and holds position.
+        When you turn back, the image stays put (doesn't return).
+        Only Ctrl+Alt+R resets.
+
+        Args:
+            yaw_angular_vel: raw yaw gyro in rad/s
+            gyro_speed: total angular velocity magnitude (rad/s), for speed gate
+            dt: time step in seconds
+
+        Returns:
+            Pixel offset for OpenGL rendering.
         """
-        now = time.monotonic()
+        # Reject spikes
+        if abs(yaw_angular_vel) > math.radians(200):
+            yaw_angular_vel = 0.0
 
-        # Hysteresis movement detection:
-        # Enter MOVE at high threshold (filters noise)
-        # Stay in MOVE until low threshold (allows slow fine adjustments)
-        if not self._is_moving:
-            if gyro_magnitude > MOVE_START_RAD:
-                self._move_count += 1
-                if self._move_count >= MOVE_START_CONFIRM:
-                    self._is_moving = True
-                    self._move_count = 0
-            else:
-                self._move_count = 0
-        else:
-            if gyro_magnitude < MOVE_STOP_RAD:
-                self._move_count += 1
-                if self._move_count >= MOVE_STOP_CONFIRM:
-                    self._output = self._wrap(raw_yaw - self._ref_yaw)
-                    self._is_moving = False
-                    self._still_start = now
-                    self._move_count = 0
-            else:
-                self._move_count = 0
-                self._still_start = now
+        # Speed-gated: only integrate when head is moving fast enough
+        resp = self._responsiveness(gyro_speed)
+        delta_rad = yaw_angular_vel * dt
+        delta_px = delta_rad * self.ppr * self.gain * resp
 
-        if self._is_moving:
-            # MOVING: track 1:1, no lag
-            self._output = self._wrap(raw_yaw - self._ref_yaw)
-        else:
-            # STILL: output is frozen (no jitter)
-            still_duration = now - self._still_start
+        self.output += delta_px
 
-            if still_duration > STILL_TIME_SEC:
-                # Drift correction: slowly move ref toward current raw_yaw
-                # This makes the output gradually return to 0 (correcting drift)
-                drift = self._wrap(raw_yaw - self._ref_yaw) - self._output
-                if abs(drift) > math.radians(0.1):  # only correct if drift > 0.1 deg
-                    correction = math.copysign(
-                        min(abs(drift), math.radians(DRIFT_CORRECTION_SPEED) * dt_ms / 1000),
-                        drift
-                    )
-                    self._ref_yaw += correction
-                    # Output stays frozen — correction is invisible
+        # Decay (only when < 1.0)
+        if self.decay < 1.0:
+            self.output *= self.decay
 
-        self._last_raw = raw_yaw
-        return self._output
+        # Soft clamp via tanh
+        if self.yaw_max_offset > 0:
+            self.output = self.yaw_max_offset * math.tanh(self.output / self.yaw_max_offset)
 
-    @staticmethod
-    def _wrap(angle):
-        return (angle + math.pi) % (2 * math.pi) - math.pi
+        return self.output
+
+    def update_pitch(self, pitch_angular_vel, gyro_speed, dt=1/60):
+        """Per-frame pitch update -- uses raw gyro angular velocity directly."""
+        if abs(pitch_angular_vel) > math.radians(200):
+            pitch_angular_vel = 0.0
+
+        resp = self._responsiveness(gyro_speed)
+        delta_rad = pitch_angular_vel * dt
+        delta_px = delta_rad * self.ppr * self.gain * resp
+
+        self.pitch_output += delta_px
+
+        if self.decay < 1.0:
+            self.pitch_output *= self.decay
+
+        if self.pitch_max_offset > 0:
+            self.pitch_output = self.pitch_max_offset * math.tanh(self.pitch_output / self.pitch_max_offset)
+
+    def recenter(self):
+        """Snap output to zero (hotkey action)."""
+        self.output = 0.0
+        self.pitch_output = 0.0
+        # No _last_yaw/_last_pitch needed -- using raw gyro directly

@@ -17,7 +17,7 @@ GLASSES_DISPLAY_INDEX = None  # None = auto-detect (last display), or set 0,1,2.
 
 # IMU / Head tracking
 IMU_RATE_HZ = 500
-HEAD_TRACKING_SENSITIVITY = 1.0  # 1.0 = strict 1:1 mapping (recommended)
+HEAD_TRACKING_SENSITIVITY = 1.0  # CLI override only; runtime value is in settings_manager
 INVERT_YAW = False
 INVERT_PITCH = False
 PITCH_ENABLED = False  # False = only track yaw (recommended, avoids cursor offset bug)
@@ -58,6 +58,8 @@ HOTKEYS = {
     'toggle_pitch':   (MOD_CTRL | MOD_ALT, ord('P')),
     'panel_left':     (MOD_CTRL | MOD_ALT, 0x25),  # Ctrl+Alt+Left arrow (VK_LEFT)
     'panel_right':    (MOD_CTRL | MOD_ALT, 0x27),  # Ctrl+Alt+Right arrow (VK_RIGHT)
+    'toggle_settings':(MOD_CTRL | MOD_ALT, ord('S')),  # ← Settings panel
+    'toggle_cursor':   (MOD_CTRL | MOD_ALT, ord('C')),
     'quit':           (MOD_CTRL | MOD_ALT, ord('Q')),
 }
 

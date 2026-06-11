@@ -150,8 +150,13 @@ class WindowSlot:
 class WindowManager:
     """Manages screen capture and periodic updates."""
 
-    def __init__(self, capture_fps=30, monitor_index=0):
-        self.capture = ScreenCapture()
+    def __init__(self, capture_fps=30, monitor_index=0, monitor_x=0, monitor_y=0, monitor_w=None, monitor_h=None):
+        self.capture = ScreenCapture(
+            x=monitor_x, 
+            y=monitor_y,
+            width=monitor_w or user32.GetSystemMetrics(0),
+            height=monitor_h or user32.GetSystemMetrics(1)
+        )
         self.slot = WindowSlot("Primary Monitor")
         self.capture_interval = 1.0 / capture_fps
         self._thread = None

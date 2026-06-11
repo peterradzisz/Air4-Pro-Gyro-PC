@@ -27,7 +27,7 @@ WDA_EXCLUDEFROMCAPTURE = 0x00000011
 class SpatialRenderer:
     """Fullscreen overlay with orthographic rendering and mouse passthrough."""
 
-    def __init__(self):
+    def __init__(self, target_x=0, target_y=0, target_w=None, target_h=None):
         self.textures = {}
         self._tex_sizes = {}
         self._hud_font = None
@@ -36,12 +36,12 @@ class SpatialRenderer:
         self._hwnd = None
         self._initialized = False
         self._cursor_hidden = False
-        # Use virtual screen (covers ALL monitors)
-        self.virt_x = user32.GetSystemMetrics(76)  # SM_XVIRTUALSCREEN
-        self.virt_y = user32.GetSystemMetrics(77)  # SM_YVIRTUALSCREEN
-        self.width = user32.GetSystemMetrics(78) or user32.GetSystemMetrics(0)   # SM_CXVIRTUALSCREEN
-        self.height = user32.GetSystemMetrics(79) or user32.GetSystemMetrics(1)  # SM_CYVIRTUALSCREEN
-        self.primary_width = user32.GetSystemMetrics(0)
+        # Cover only the target display
+        self.virt_x = target_x
+        self.virt_y = target_y
+        self.width = target_w or user32.GetSystemMetrics(0)
+        self.height = target_h or user32.GetSystemMetrics(1)
+        self.primary_width = target_w or user32.GetSystemMetrics(0)
 
     def reinit_size(self):
         """Recreate overlay to cover the current virtual desktop."""
@@ -59,6 +59,7 @@ class SpatialRenderer:
 
         # Recreate pygame display at new size (OpenGL context is recreated)
         os.environ['SDL_VIDEO_WINDOW_POS'] = f'{self.virt_x},{self.virt_y}'
+        pygame.display.gl_set_attribute(pygame.GL_ALPHA_SIZE, 8)
         flags = DOUBLEBUF | OPENGL | NOFRAME
         pygame.display.set_mode((self.width, self.height), flags)
 
@@ -91,7 +92,6 @@ class SpatialRenderer:
         self._hud_font_big = pygame.font.SysFont("segoeui", 24, bold=True)
         self._hud_tex = glGenTextures(1)
         self._cursor_tex = self._create_cursor_texture()
-        self._hide_system_cursor()
         print(f"  Overlay resized: {self.width}x{self.height} at ({self.virt_x},{self.virt_y})")
 
     def init(self):
@@ -99,6 +99,7 @@ class SpatialRenderer:
         pygame.init()
         pygame.display.set_caption("AirPin")
 
+        pygame.display.gl_set_attribute(pygame.GL_ALPHA_SIZE, 8)
         flags = DOUBLEBUF | OPENGL | NOFRAME
         pygame.display.set_mode((self.width, self.height), flags)
 
@@ -107,7 +108,7 @@ class SpatialRenderer:
         self._hwnd = hwnd
 
         if hwnd:
-            # 1. Invisible to DXGI capture (no feedback loop)
+            # Exclude overlay from screen capture (prevents feedback loop / mirror effect)
             user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
 
             # 2. LAYERED + TRANSPARENT = real mouse passthrough
@@ -130,7 +131,7 @@ class SpatialRenderer:
             # 4. Stay on top of everything
             win32gui.SetWindowPos(
                 hwnd, win32con.HWND_TOPMOST,
-                0, 0, self.width, self.height,
+                self.virt_x, self.virt_y, self.width, self.height,
                 win32con.SWP_NOACTIVATE | win32con.SWP_SHOWWINDOW
             )
 
@@ -140,9 +141,6 @@ class SpatialRenderer:
         self._hud_tex = glGenTextures(1)
         self._cursor_tex = self._create_cursor_texture()
         self._initialized = True
-
-        # Hide the system cursor — we render our own shifted with content
-        self._hide_system_cursor()
         print(f"  Overlay: {self.width}x{self.height}, LAYERED+TRANSPARENT, custom cursor")
 
     def _setup_gl(self):
@@ -276,20 +274,26 @@ class SpatialRenderer:
         slot.gl_texture_id = tex_id
         slot.texture_dirty = False
 
-    def render_panels(self, panels, panel_offsets, head_yaw, head_pitch, zoom=1.0):
+    def render_panels(self, panels, panel_offsets, offset_x, offset_y, zoom=1.0,
+                      target_x=None, target_y=None, target_w=None, target_h=None):
         """
-        Render multiple panels arranged horizontally.
-        panels: list of Panel objects (from panel_manager)
-        panel_offsets: list of x pixel offsets for each panel
+        Render captured panels centered on the target display with pixel offset.
+        Overlay is transparent — only the captured textures are drawn.
         """
         glClear(GL_COLOR_BUFFER_BIT)
         glLoadIdentity()
 
-        ppd_rad = self.primary_width / math.radians(config.FOV_HORIZONTAL_DEG)
-        yaw_sign = -1.0 if config.INVERT_YAW else 1.0
-        pitch_sign = -1.0 if config.INVERT_PITCH else 1.0
-        head_offset_x = yaw_sign * head_yaw * ppd_rad
-        head_offset_y = pitch_sign * head_pitch * ppd_rad
+        # Scissor clip to overlay bounds - prevents texture wrapping
+        glEnable(GL_SCISSOR_TEST)
+        glScissor(0, 0, self.width, self.height)
+
+        # Pixel offsets passed directly from SpatialTrackingFilter
+        head_offset_x = offset_x
+        head_offset_y = offset_y
+
+        # Center of the overlay (target display)
+        center_x = self.virt_x + self.width * 0.5
+        center_y = self.virt_y + self.height * 0.5
 
         for panel, panel_x_offset in zip(panels, panel_offsets):
             if panel.pixel_data is None:
@@ -302,17 +306,14 @@ class SpatialRenderer:
             if data is None:
                 continue
 
-            # Panel size from actual captured data (not virtual desktop size)
+            # Panel size from actual captured data
             tex_h, tex_w = data.shape[:2]
             sw = float(tex_w) * zoom
             sh = float(tex_h) * zoom
 
-            # Position: panel_x_offset is the real Windows x coordinate
-            # Head tracking shifts everything relative to primary monitor center
-            primary_cx = float(self.primary_width) * 0.5
-            primary_cy = float(user32.GetSystemMetrics(1)) * 0.5
-            x = panel_x_offset * zoom + head_offset_x + primary_cx * (1 - zoom)
-            y = head_offset_y + primary_cy - sh * 0.5
+            # Center panel on the overlay, shifted by head tracking + panel offset
+            x = center_x - sw * 0.5 + head_offset_x + panel_x_offset * zoom
+            y = center_y - sh * 0.5 + head_offset_y
 
             glEnable(GL_TEXTURE_2D)
             glBindTexture(GL_TEXTURE_2D, panel.gl_texture_id)
@@ -324,6 +325,9 @@ class SpatialRenderer:
             glTexCoord2f(1, 1); glVertex2f(x + sw, y + sh)
             glTexCoord2f(0, 1); glVertex2f(x, y + sh)
             glEnd()
+
+        # Disable scissor so HUD can draw freely
+        glDisable(GL_SCISSOR_TEST)
 
     def draw_hud(self, hud_data):
         """
