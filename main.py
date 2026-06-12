@@ -510,6 +510,23 @@ def main():
         # ── Render all panels ──
         offsets = [p[0] for p in panels_render]
         slots = [p[1] for p in panels_render]
+
+        # Sync display quality settings to shader pipeline
+        dp = settings_panel.display
+        pipeline = renderer.pipeline
+        pipeline.brightness = dp.brightness
+        pipeline.gamma = dp.gamma
+        pipeline.sharpness = dp.sharpness
+        pipeline.vignette = dp.vignette
+        pipeline.chromatic = dp.chromatic
+        pipeline.temperature = dp.temperature
+        pipeline.enable_brightness = dp.enable_brightness
+        pipeline.enable_gamma = dp.enable_gamma
+        pipeline.enable_sharpness = dp.enable_sharpness
+        pipeline.enable_vignette = dp.enable_vignette
+        pipeline.enable_chromatic = dp.enable_chromatic
+        pipeline.enable_temperature = dp.enable_temperature
+
         renderer.render_panels(slots, offsets, pixel_offset_x, pixel_offset_y, display_zoom)
 
         # -- Cursor --

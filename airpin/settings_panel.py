@@ -3,6 +3,7 @@
 import math
 import pygame
 from airpin import settings_manager
+from airpin.display_settings import DisplayQualityTab
 
 PANEL_W = 400
 PANEL_H = 810
@@ -61,6 +62,8 @@ class SettingsPanel:
         self._edge_zoom = settings_manager.get("edge_zoom", 0.0)
         self._snap_speed = settings_manager.get("snap_speed", 2.5)
         self._usb_reset = settings_manager.get("usb_reset", True)
+        self._display_tab = False  # False=Tracking tab, True=Display tab
+        self._display = DisplayQualityTab()
 
     @property
     def visible(self): return self._visible
@@ -80,6 +83,8 @@ class SettingsPanel:
     def snap_speed(self): return self._snap_speed
     @property
     def usb_reset(self): return self._usb_reset
+    @property
+    def display(self): return self._display
 
     def show(self): self._visible = True
     def hide(self): self._visible = False
@@ -163,6 +168,19 @@ class SettingsPanel:
                 self._visible = False
             return True
 
+        # Tab buttons: Tracking (x=20, w=175) and Display (x=205, w=175) at y=40
+        if 40 <= my <= 62:
+            if 20 <= mx <= 195 and clicked:
+                self._display_tab = False
+                return True
+            if 205 <= mx <= 380 and clicked:
+                self._display_tab = True
+                return True
+
+        # Display tab: delegate mouse events
+        if self._display_tab:
+            return self._display.handle_mouse(mx, my, clicked)
+
         vals = [self._yaw_range, self._pitch_range, self._deadzone, self._gain, self._decay, self._edge_zoom, self._snap_speed]
         keys = ["yaw_range", "pitch_range", "deadzone", "gain", "decay", "edge_zoom", "snap_speed"]
         for idx in range(7):
@@ -192,6 +210,7 @@ class SettingsPanel:
         self._reset_hovered = BTN_X <= mx <= BTN_X + BTN_W and BTN_Y <= my <= BTN_Y + BTN_H
         if self._reset_hovered and clicked:
             settings_manager.reset_all()
+            self._display.reset_all()
             for k in ["yaw_range", "pitch_range", "deadzone", "gain", "decay", "edge_zoom", "snap_speed", "usb_reset"]:
                 setattr(self, "_" + k, settings_manager.get(k, 0.15))
             self._hide_cursor = settings_manager.get("hide_cursor", True)
@@ -201,7 +220,7 @@ class SettingsPanel:
             return True
         return False
 
-    def handle_mouse_up(self): self._dragging = None
+    def handle_mouse_up(self): self._dragging = None; self._display.handle_mouse_up()
 
     def _apply_preset(self, name):
         """Apply a named preset to all slider values and persist."""
@@ -226,6 +245,27 @@ class SettingsPanel:
         x_txt = self._font.render("X", True, (180, 180, 190))
         s.blit(x_txt, (x_btn_x + (x_btn_size - x_txt.get_width()) // 2,
                         x_btn_y + (x_btn_size - x_txt.get_height()) // 2))
+        # Tab buttons: Tracking | Display
+        tab_y = 40
+        track_color = (40, 80, 120, 220) if not self._display_tab else (30, 35, 50, 180)
+        display_color = (40, 80, 120, 220) if self._display_tab else (30, 35, 50, 180)
+        pygame.draw.rect(s, track_color, (20, tab_y, 175, 22), border_radius=6)
+        pygame.draw.rect(s, display_color, (205, tab_y, 175, 22), border_radius=6)
+        tt = self._font_sm.render("Tracking", True, (200, 220, 255) if not self._display_tab else (120, 130, 150))
+        dt = self._font_sm.render("Display", True, (200, 220, 255) if self._display_tab else (120, 130, 150))
+        s.blit(tt, (20 + (175 - tt.get_width()) // 2, tab_y + 2))
+        s.blit(dt, (205 + (175 - dt.get_width()) // 2, tab_y + 2))
+
+        if self._display_tab:
+            # Display Quality tab
+            self._display.render(s)
+        else:
+            # Tracking tab (existing sliders)
+            self._render_tracking_tab(s)
+        return s, PANEL_X, PANEL_Y, PANEL_W, PANEL_H
+
+    def _render_tracking_tab(self, s):
+        """Render the tracking sliders tab content."""
         vals = [self._yaw_range, self._pitch_range, self._deadzone, self._gain, self._decay, self._edge_zoom, self._snap_speed]
         for idx in range(7):
             sx, sy, sw, sh = self._slider_geom(idx)
@@ -283,4 +323,3 @@ class SettingsPanel:
         pygame.draw.rect(s, usb_cc, (20, y, DROP_W, 28), border_radius=6)
         s.blit(self._font_sm.render(usb_label, True, (220, 220, 220)), (28, y + 4))
         s.blit(self._font_sm.render("* Restart for monitor change", True, (120, 120, 140)), (20, 758))
-        return s, PANEL_X, PANEL_Y, PANEL_W, PANEL_H

@@ -19,6 +19,7 @@ import win32gui
 import win32con
 
 import config
+from airpin.shader_pipeline import ShaderPipeline
 
 user32 = ctypes.windll.user32
 WDA_EXCLUDEFROMCAPTURE = 0x00000011
@@ -47,6 +48,9 @@ class SpatialRenderer:
         self._toast_text = ""
         self._toast_start = 0.0
         self._toast_duration = 2.0  # seconds
+
+        # Post-processing shader pipeline
+        self._pipeline = ShaderPipeline(self.width, self.height)
 
     def reinit_size(self):
         """Recreate overlay to cover the current virtual desktop."""
@@ -102,6 +106,7 @@ class SpatialRenderer:
         self._setup_gl()
         # Invalidate all textures (GL context was recreated)
         self.invalidate_textures()
+        self._pipeline.resize(self.width, self.height)
         self._hud_font = pygame.font.SysFont("segoeui", 20)
         self._hud_font_big = pygame.font.SysFont("segoeui", 28, bold=True)
         self._hud_tex = glGenTextures(1)
@@ -165,6 +170,7 @@ class SpatialRenderer:
         self._hud_font_big = pygame.font.SysFont("segoeui", 28, bold=True)
         self._hud_tex = glGenTextures(1)
         self._cursor_tex = self._create_cursor_texture()
+        self._pipeline.init()
         self._initialized = True
         print(f"  Overlay: {self.width}x{self.height}, LAYERED+TRANSPARENT, custom cursor")
 
@@ -307,8 +313,11 @@ class SpatialRenderer:
                       target_x=None, target_y=None, target_w=None, target_h=None):
         """
         Render captured panels centered on the target display with pixel offset.
-        Overlay is transparent — only the captured textures are drawn.
+        Panels render to FBO if post-processing is enabled, then composited.
         """
+        use_pipeline = self._pipeline.any_enabled
+        if use_pipeline:
+            self._pipeline.begin_capture()
         glClear(GL_COLOR_BUFFER_BIT)
         glLoadIdentity()
 
@@ -357,6 +366,20 @@ class SpatialRenderer:
 
         # Disable scissor so HUD can draw freely
         glDisable(GL_SCISSOR_TEST)
+
+        # Post-process: unbind FBO, draw fullscreen quad with shader
+        if use_pipeline:
+            self._pipeline.end_capture_and_draw()
+            # Restore orthographic projection (pipeline uses NDC)
+            glMatrixMode(GL_PROJECTION)
+            glLoadIdentity()
+            glOrtho(self.virt_x, self.virt_x + self.width,
+                    self.virt_y + self.height, self.virt_y, -1, 1)
+            glMatrixMode(GL_MODELVIEW)
+            glLoadIdentity()
+        else:
+            # No pipeline - clear was already done at start
+            pass
 
     def draw_hud(self, hud_data):
         """
@@ -602,6 +625,11 @@ class SpatialRenderer:
             del self.textures[slot_id]
         self._tex_sizes.pop(slot_id, None)
 
+    @property
+    def pipeline(self):
+        """Access the shader pipeline for setting effect values."""
+        return self._pipeline
+
     def cleanup(self):
         self._show_system_cursor()
         for tex_id in self.textures.values():
@@ -617,5 +645,6 @@ class SpatialRenderer:
             except Exception:
                 pass
         self._hud_tex = None
+        self._pipeline.cleanup()
         self._hud_font = None
         self._initialized = False
