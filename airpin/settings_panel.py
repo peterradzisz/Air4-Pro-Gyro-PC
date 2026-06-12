@@ -5,7 +5,7 @@ import pygame
 from airpin import settings_manager
 
 PANEL_W = 400
-PANEL_H = 730
+PANEL_H = 810
 PANEL_X = 40
 PANEL_Y = 280
 SLIDER_X = 20
@@ -13,12 +13,33 @@ SLIDER_W = 360
 SLIDER_H = 8
 KNOB_R = 12
 BTN_X = 20
-BTN_Y = 510
+BTN_Y = 580
 BTN_W = 360
 BTN_H = 36
 DROP_X = 20
 DROP_W = 360
 DROP_H = 28
+
+PRESETS = {
+    "movies": {
+        "yaw_range": 1.0,
+        "pitch_range": 1.0,
+        "deadzone": 0.035,
+        "gain": 0.87,
+        "decay": 1.0,
+        "edge_zoom": 0.0,
+        "snap_speed": 2.5,
+    },
+    "games": {
+        "yaw_range": 0.45,
+        "pitch_range": 0.4,
+        "deadzone": 0.04,
+        "gain": 1.0,
+        "decay": 1.0,
+        "edge_zoom": 0.3,
+        "snap_speed": 4.6,
+    },
+}
 
 class SettingsPanel:
     def __init__(self):
@@ -38,7 +59,8 @@ class SettingsPanel:
         self._gain = settings_manager.get("gain", 0.40)
         self._decay = settings_manager.get("decay", 1.0)
         self._edge_zoom = settings_manager.get("edge_zoom", 0.0)
-        self._still_lock_time = settings_manager.get("still_lock_time", 0.5)
+        self._snap_speed = settings_manager.get("snap_speed", 2.5)
+        self._usb_reset = settings_manager.get("usb_reset", True)
 
     @property
     def visible(self): return self._visible
@@ -55,7 +77,9 @@ class SettingsPanel:
     @property
     def edge_zoom(self): return self._edge_zoom
     @property
-    def still_lock_time(self): return self._still_lock_time
+    def snap_speed(self): return self._snap_speed
+    @property
+    def usb_reset(self): return self._usb_reset
 
     def show(self): self._visible = True
     def hide(self): self._visible = False
@@ -72,13 +96,13 @@ class SettingsPanel:
     @staticmethod
     def _knob_x(val, idx):
         mins = [0.05, 0.05, 0.01, 0.10, 0.990, 0.00, 0.0]
-        maxes = [1.00, 1.00, 0.20, 1.00, 1.000, 0.30, 2.0]
+        maxes = [1.00, 1.00, 0.20, 1.00, 1.000, 0.30, 5.0]
         return SLIDER_X + (val - mins[idx]) / (maxes[idx] - mins[idx]) * SLIDER_W
 
     @staticmethod
     def _val_from_x(mx, idx):
         mins = [0.05, 0.05, 0.01, 0.10, 0.990, 0.00, 0.0]
-        maxes = [1.00, 1.00, 0.20, 1.00, 1.000, 0.30, 2.0]
+        maxes = [1.00, 1.00, 0.20, 1.00, 1.000, 0.30, 5.0]
         frac = max(0.0, min(1.0, (mx - SLIDER_X) / SLIDER_W))
         steps = [100, 100, 200, 100, 1000, 100, 10]
         raw = mins[idx] + frac * (maxes[idx] - mins[idx])
@@ -86,17 +110,17 @@ class SettingsPanel:
 
     @staticmethod
     def _label(idx, val):
-        names = ["Yaw Range", "Pitch Range", "Deadzone", "Gain", "Return Speed", "Edge Zoom", "Still Lock"]
+        names = ["Yaw Range", "Pitch Range", "Deadzone", "Gain", "Return Speed", "Edge Zoom", "Snap Speed"]
         if idx < 2: return f"{names[idx]}: {val:.2f} ({int(val/0.50*100)}%% screen)"
         if idx == 2: return f"Deadzone: {val:.3f} (noise floor ~0.03)"
         if idx == 3: return f"Gain: {val:.2f} (higher = more shift)"
         if idx == 4: return f"Return Speed: {val:.3f} (1.0 = stays put)"
         if idx == 5: return f"Edge Zoom: {val:.0%} (zoom at edges)"
-        if idx == 6: return f"Still Lock: {val:.1f}s (0.0 = off, freeze when still)"
+        if idx == 6: return f"Snap Speed: {val:.1f} (0.0 = no snap-back)"
 
     @staticmethod
     def _minmax(idx):
-        return ([0.05, 0.05, 0.01, 0.10, 0.990, 0.00, 0.0][idx], [1.00, 1.00, 0.20, 1.00, 1.000, 0.30, 2.0][idx])
+        return ([0.05, 0.05, 0.01, 0.10, 0.990, 0.00, 0.0][idx], [1.00, 1.00, 0.20, 1.00, 1.000, 0.30, 5.0][idx])
 
     def update_monitors(self, monitors):
         self._monitors = monitors
@@ -105,12 +129,17 @@ class SettingsPanel:
 
     def handle_mouse(self, mx, my, clicked):
         if not self._visible: return False
-        if DROP_X <= mx <= DROP_X + DROP_W and 625 <= my <= 653:
+        if DROP_X <= mx <= DROP_X + DROP_W and 725 <= my <= 753:
+            if clicked:
+                self._usb_reset = not self._usb_reset
+                settings_manager.set("usb_reset", self._usb_reset)
+            return True
+        if DROP_X <= mx <= DROP_X + DROP_W and 690 <= my <= 718:
             if clicked:
                 self._hide_cursor = not self._hide_cursor
                 settings_manager.set("hide_cursor", self._hide_cursor)
             return True
-        dy = 560
+        dy = 620
         if self._drop_open:
             for i in range(len(self._monitors)):
                 iy = dy + DROP_H + i * 28
@@ -125,8 +154,8 @@ class SettingsPanel:
         if DROP_X <= mx <= DROP_X + DROP_W and dy <= my <= dy + DROP_H:
             if clicked: self._drop_open = not self._drop_open
             return True
-        vals = [self._yaw_range, self._pitch_range, self._deadzone, self._gain, self._decay, self._edge_zoom, self._still_lock_time]
-        keys = ["yaw_range", "pitch_range", "deadzone", "gain", "decay", "edge_zoom", "still_lock_time"]
+        vals = [self._yaw_range, self._pitch_range, self._deadzone, self._gain, self._decay, self._edge_zoom, self._snap_speed]
+        keys = ["yaw_range", "pitch_range", "deadzone", "gain", "decay", "edge_zoom", "snap_speed"]
         for idx in range(7):
             sx, sy, sw, sh = self._slider_geom(idx)
             kx = self._knob_x(vals[idx], idx)
@@ -142,18 +171,36 @@ class SettingsPanel:
                 setattr(self, "_" + keys[idx], v)
                 settings_manager.set(keys[idx], v)
                 return True
+        # Preset buttons
+        if 20 <= mx <= 190 and 545 <= my <= 575:
+            if clicked:
+                self._apply_preset("movies")
+            return True
+        if 210 <= mx <= 380 and 545 <= my <= 575:
+            if clicked:
+                self._apply_preset("games")
+            return True
         self._reset_hovered = BTN_X <= mx <= BTN_X + BTN_W and BTN_Y <= my <= BTN_Y + BTN_H
         if self._reset_hovered and clicked:
             settings_manager.reset_all()
-            for k in ["yaw_range", "pitch_range", "deadzone", "gain", "decay", "edge_zoom", "still_lock_time"]:
+            for k in ["yaw_range", "pitch_range", "deadzone", "gain", "decay", "edge_zoom", "snap_speed", "usb_reset"]:
                 setattr(self, "_" + k, settings_manager.get(k, 0.15))
             self._hide_cursor = settings_manager.get("hide_cursor", True)
+            self._usb_reset = settings_manager.get("usb_reset", True)
             t = settings_manager.get("target_monitor", 0)
             self._selected_monitor = min(t, len(self._monitors) - 1) if self._monitors else 0
             return True
         return False
 
     def handle_mouse_up(self): self._dragging = None
+
+    def _apply_preset(self, name):
+        """Apply a named preset to all slider values and persist."""
+        if name not in PRESETS:
+            return
+        for key, val in PRESETS[name].items():
+            setattr(self, "_" + key, val)
+            settings_manager.set(key, val)
 
     def render(self):
         if not self._visible: return None
@@ -162,7 +209,7 @@ class SettingsPanel:
         pygame.draw.rect(s, (15, 15, 25, 210), (0, 0, PANEL_W, PANEL_H), border_radius=10)
         pygame.draw.rect(s, (60, 130, 220, 120), (0, 0, PANEL_W, PANEL_H), width=2, border_radius=10)
         s.blit(self._font.render("Settings", True, (100, 180, 255)), (20, 16))
-        vals = [self._yaw_range, self._pitch_range, self._deadzone, self._gain, self._decay, self._edge_zoom, self._still_lock_time]
+        vals = [self._yaw_range, self._pitch_range, self._deadzone, self._gain, self._decay, self._edge_zoom, self._snap_speed]
         for idx in range(7):
             sx, sy, sw, sh = self._slider_geom(idx)
             kx = self._knob_x(vals[idx], idx)
@@ -175,13 +222,20 @@ class SettingsPanel:
             pygame.draw.circle(s, (60, 140, 220), (int(kx), sy + sh // 2), KNOB_R - 3)
             s.blit(self._font_sm.render(str(mn), True, (120, 130, 150)), (sx, sy + 16))
             s.blit(self._font_sm.render(str(mx2), True, (120, 130, 150)), (sx + sw - 15, sy + 16))
+        # Preset buttons
+        pygame.draw.rect(s, (40, 80, 120, 200), (20, 545, 170, 30), border_radius=6)
+        pt1 = self._font_sm.render("Movies", True, (200, 220, 255))
+        s.blit(pt1, (20 + (170 - pt1.get_width()) // 2, 550))
+        pygame.draw.rect(s, (120, 60, 40, 200), (210, 545, 170, 30), border_radius=6)
+        pt2 = self._font_sm.render("Games", True, (200, 220, 255))
+        s.blit(pt2, (210 + (170 - pt2.get_width()) // 2, 550))
         bc = (80, 50, 50, 220) if self._reset_hovered else (50, 50, 60, 200)
         pygame.draw.rect(s, bc, (BTN_X, BTN_Y, BTN_W, BTN_H), border_radius=6)
         pygame.draw.rect(s, (100, 100, 120, 150), (BTN_X, BTN_Y, BTN_W, BTN_H), width=1, border_radius=6)
         bt = self._font_sm.render("Reset All to Defaults", True, (220, 200, 200))
         tw, th = bt.get_size()
         s.blit(bt, (BTN_X + (BTN_W - tw) // 2, BTN_Y + (BTN_H - th) // 2))
-        y = 560
+        y = 620
         s.blit(self._font_sm.render("Target Monitor:", True, (170, 200, 230)), (20, y))
         y += 20
         ddy = y
@@ -199,11 +253,17 @@ class SettingsPanel:
                 mn = m["name"]; mw = m["w"]; mh = m["h"]
                 it = self._font_sm.render(f"[{i}] {mn[:35]} {mw}x{mh}", True, (200, 220, 255))
                 y += 28
-        y = 625
+        y = 690
         on_off = "ON" if self._hide_cursor else "OFF"
-        cl = f"Hide System Cursor: {on_off}"
+        cl = f"Show Cursor on Glasses: {on_off}"
         cc = (40, 120, 60, 180) if self._hide_cursor else (100, 50, 50, 180)
         pygame.draw.rect(s, cc, (20, y, DROP_W, 28), border_radius=6)
         s.blit(self._font_sm.render(cl, True, (220, 220, 220)), (28, y + 4))
-        s.blit(self._font_sm.render("* Restart for monitor change", True, (120, 120, 140)), (20, y + 36))
+        y = 725
+        usb_on_off = "ON" if self._usb_reset else "OFF"
+        usb_label = f"USB Reset on Stall: {usb_on_off}"
+        usb_cc = (40, 120, 60, 180) if self._usb_reset else (100, 50, 50, 180)
+        pygame.draw.rect(s, usb_cc, (20, y, DROP_W, 28), border_radius=6)
+        s.blit(self._font_sm.render(usb_label, True, (220, 220, 220)), (28, y + 4))
+        s.blit(self._font_sm.render("* Restart for monitor change", True, (120, 120, 140)), (20, 758))
         return s, PANEL_X, PANEL_Y, PANEL_W, PANEL_H

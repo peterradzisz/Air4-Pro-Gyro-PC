@@ -386,16 +386,13 @@ def main():
                 win32gui.SetWindowLong(renderer._hwnd, win32con.GWL_EXSTYLE, ex_style)
             log.info(f"Settings panel: {'shown' if settings_panel.visible else 'hidden'} (click-through: {'OFF' if settings_panel.visible else 'ON'})")
         if 'toggle_cursor' in triggered:
-            current = settings_manager.get("hide_cursor", False)
+            current = settings_manager.get("hide_cursor", True)
             settings_manager.set("hide_cursor", not current)
             if not current:
-                print("  Cursor: HIDDEN")
+                print("  Cursor on glasses: ON (GL cursor drawn)")
             else:
-                if _cursor_hidden_on_glasses:
-                    renderer._show_system_cursor()
-                    _cursor_hidden_on_glasses = False
-                print("  Cursor: VISIBLE")
-            log.info(f"Cursor hide: {not current}")
+                print("  Cursor on glasses: OFF (no cursor on glasses)")
+            log.info(f"Show GL cursor: {not current}")
 
         # ── Add virtual displays ──
         if ('panel_left' in triggered or 'panel_right' in triggered) and vdd:
@@ -423,6 +420,9 @@ def main():
         dt_ms = (now - last_time) * 1000.0
         last_time = now
 
+        if tracker:
+            tracker.usb_reset_enabled = settings_manager.get('usb_reset', True)
+
         if tracker and tracking_enabled and tracker.imu_count > 0:
             gyro_mag = tracker.get_gyro_magnitude()
             # Get raw gyro angular velocities (rad/s) -- bypass complementary filter
@@ -435,7 +435,8 @@ def main():
             follow.speed_full = 0.60  # hardcoded, responsiveness slider removed
             follow.gain = settings_manager.get('gain', 0.40)
             follow.decay = settings_manager.get('decay', 1.0)
-            follow.still_lock_time = settings_manager.get('still_lock_time', 0.5)
+            follow.snap_speed = settings_manager.get('snap_speed', 2.5)
+            follow.snap_return = settings_manager.get('snap_return', 0.5)
             # Yaw: raw gyro[1] = yaw angular velocity (rad/s)
             # Use per-axis speed for gate: yaw gate uses |gy| only
             yaw_sign = -1.0 if config.INVERT_YAW else 1.0
@@ -505,12 +506,13 @@ def main():
                              target_disp['y'] <= pt.y < target_disp['y'] + target_disp['h'])
 
         if cursor_on_glasses:
-            # Hide system cursor and draw GL cursor at shifted position
+            # Always hide system cursor on glasses (wrong position due to tracking)
             if not _cursor_hidden_on_glasses:
                 renderer._hide_system_cursor()
                 _cursor_hidden_on_glasses = True
-            # Draw GL cursor at the position the user expects (shifted by head tracking)
-            renderer.draw_cursor(pixel_offset_x, pixel_offset_y, display_zoom)
+            # Draw GL cursor at shifted position when setting is ON
+            if settings_manager.get("hide_cursor", True):
+                renderer.draw_cursor(pixel_offset_x, pixel_offset_y, display_zoom)
         else:
             # Cursor is on PC monitor: restore system cursor
             if _cursor_hidden_on_glasses:

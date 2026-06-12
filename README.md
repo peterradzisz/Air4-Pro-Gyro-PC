@@ -1,142 +1,94 @@
 # AirPin Extended
 
-Fork of [AirPin](https://github.com/nomi-san/airpin) by nomi-san. Adds head-tracked spatial display for **RayNeo Air 4 Pro** AR glasses used as an **extended monitor** alongside your regular desktop/laptop screen.
+Head-tracked spatial display for **RayNeo Air 4 Pro** AR glasses.
 
-> **Experimental** -- built for personal use on a specific hardware setup. Expect rough edges.
+Put on the glasses, see your desktop floating in space. Turn your head — the screen stays where it is, like a virtual monitor pinned to the wall.
 
-## What it does
+## Setup
 
-You connect RayNeo Air 4 Pro glasses to your PC as a second display. AirPin runs a fullscreen overlay on the glasses that captures your desktop and applies head-tracking offset -- so the screen feels **pinned in 3D space**. Turn your head and the content stays where it is.
+### What you need
 
-Your main monitor is completely untouched -- the overlay only covers the glasses display.
-
-### Hardware required
-
-- **RayNeo Air 4 Pro** AR glasses
-- **HDMI + USB-A to USB-C cable** (or USB-C from GPU with DisplayPort Alt Mode -- rare)
-  - HDMI carries video to the glasses (extended display)
-  - USB-C carries IMU data (head tracking sensor)
+- RayNeo Air 4 Pro AR glasses
+- HDMI + USB-A to USB-C cable
 - Windows 10/11 PC with a dedicated monitor
 
-## Quick start
+### Install
 
 ```
 pip install -r requirements.txt
+```
+
+### Connect the glasses
+
+1. Plug HDMI into your GPU — glasses get video as a **second display**
+2. Plug USB-C into your PC — glasses send head tracking data
+3. In Windows Settings > Display, make sure glasses are set to **Extend** (not duplicate)
+4. Note which monitor number the glasses are (usually 0 or 1)
+
+### First run
+
+```
 python main.py
 ```
 
-The app should just work with defaults. Put on the glasses, turn your head.
+Put on the glasses. You should see your desktop. Turn your head left — the image shifts right, as if the screen is floating in front of you.
 
-If head tracking feels wrong, press `Ctrl+Alt+S` to open the settings panel.
-
-### First-time setup
-
-1. Connect glasses via HDMI + USB-C to your PC
-2. In Windows Settings > Display, set glasses as **Extended display** (not duplicate)
-3. Note which monitor number the glasses are (usually 0 or 1)
-4. Run `python main.py` -- if the overlay is on the wrong screen, change it in the settings panel (`Ctrl+Alt+S`)
-
-## Settings
-
-Press `Ctrl+Alt+S` to open the settings panel. Defaults work well, but you can tune:
-
-| Setting | Default | What it does |
-|---------|---------|-------------|
-| **Yaw Range** | 1.00 | Max horizontal shift (1.0 = full screen width) |
-| **Pitch Range** | 1.00 | Max vertical shift (1.0 = full screen height) |
-| **Deadzone** | 0.035 | Minimum head speed to trigger tracking. Higher = less sensitive to tiny movements |
-| **Gain** | 0.87 | How much the image shifts per degree of head turn. Higher = more shift |
-| **Return Speed** | 1.000 | 1.000 = image stays where you left it. Lower = slowly drifts back to center |
+If the overlay appears on the wrong screen, press `Ctrl+Alt+S` and change the monitor in the dropdown.
 
 ## Controls
 
-All hotkeys are `Ctrl+Alt+...` and work globally:
+All shortcuts use `Ctrl+Alt+` + key:
 
-| Key | Action |
-|-----|--------|
-| `R` | Recenter head tracking |
-| `T` | Toggle yaw tracking on/off |
-| `P` | Toggle pitch tracking on/off |
-| `I` | Invert yaw direction |
-| `S` | Open settings panel |
-| `H` | Toggle HUD |
-| `+` / `-` | Zoom in/out |
-| `0` | Reset zoom |
-| `Q` | Quit |
+| Shortcut | What it does |
+|----------|-------------|
+| **R** | **Recenter** — reset the screen position to where you're looking |
+| **S** | **Settings** — open the settings panel |
+| **T** | **Toggle tracking** — pause/resume head tracking |
+| **H** | **Toggle HUD** — show/hide debug info |
+| **+/-** | **Zoom** in/out |
+| **0** | Reset zoom to 100% |
+| **Q** | **Quit** |
 
-## How head tracking works
+**Most useful:** `R` to recenter, `S` for settings, `T` to pause tracking.
 
-```
-RayNeo Air 4 Pro IMU (500 Hz)
-    |
-    | Raw gyro angular velocity (gx, gy, gz)
-    v
-SpatialTrackingFilter
-    |
-    | Per-axis speed gate (deadzone filter)
-    | Smoothstep responsiveness curve
-    | Integration -> tanh soft clamp
-    v
-Pixel offset -> OpenGL overlay shifts the captured screen
-```
+## Settings
 
-Key design decisions:
-- **Raw gyro, no complementary filter** -- avoids yaw drift and wrapping artifacts
-- **Per-axis speed gate** -- yaw only tracks when yaw axis moves, pitch only when pitch axis moves. Cross-axis noise does not bleed through.
-- **Speed-gated integration** -- below the deadzone, movement is ignored. This filters out heartbeat, breathing, and micro-sway.
-- **Return Speed (decay)** -- at 1.0 the image stays pinned exactly where you left it. Set lower if you want it to drift back to center.
+Press `Ctrl+Alt+S` to open the settings panel.
 
-## Project structure
+| Setting | What it does |
+|---------|-------------|
+| **Yaw Range** | How far the image can shift left/right. Higher = more room to look around |
+| **Pitch Range** | How far the image can shift up/down |
+| **Deadzone** | How still you need to be. Higher = less sensitive to tiny head movements |
+| **Gain** | How much the image moves per degree of head turn. Higher = more responsive |
+| **Return Speed** | 1.000 = image stays pinned where you left it. Lower = slowly drifts back to center |
+| **Edge Zoom** | Zooms in at the edges of the screen so text stays readable |
+| **Snap Speed** | How fast the image returns to center after you move your head back. 0 = disabled |
 
-```
-main.py                  Entry point, render loop
-config.py                FOV, hotkeys, IMU params
-airpin/
-  imu_tracker.py         RayNeoSDK -> raw gyro via USB HID
-  smooth_follow.py       SpatialTrackingFilter
-  spatial_renderer.py    OpenGL fullscreen overlay
-  window_capture.py      BitBlt screen capture
-  settings_panel.py      Settings UI (5 sliders)
-  settings_manager.py    JSON persistence
-  hotkey_manager.py      Global hotkeys
-  audio_router.py        WASAPI audio to glasses
-  virtual_display.py     Parsec VDD virtual monitors
-lib/
-  RayNeoSDK.dll          IMU SDK
-  libusb-1.0.dll         USB communication
-airpin_settings.json     Saved settings
-```
+### Presets
 
-## Command-line options
+Two presets at the top of the settings panel:
 
-```
-python main.py [--no-imu] [--no-audio] [--monitor N]
-```
+- **Movies** — wide view range, smooth movement, no edge zoom. Good for watching content
+- **Games** — tight range, snappy response, edge zoom on. Good for gaming where you need precision
 
-| Option | Description |
-|--------|-------------|
-| `--no-imu` | Run without head tracking (fixed display) |
-| `--no-audio` | Disable audio routing to glasses |
-| `--monitor N` | Capture monitor N (default: 0) |
+## Troubleshooting
 
-## Known limitations
+**Head tracking not working / drifts to one side**
+Press `Ctrl+Alt+R` to recenter. If it keeps drifting, unplug and replug the glasses USB cable.
 
-- **RayNeo Air 4 Pro only** -- other glasses may need axis mapping changes
-- **BitBlt capture** -- may not capture exclusive fullscreen games. Use borderless windowed
-- **USB replug between runs** -- the SDK does not clean up USB HID cleanly. Unplug and replug glasses if IMU stalls
-- **Yaw has no magnetometer** -- no absolute reference. Recenter with `Ctrl+Alt+R` if drift accumulates
-- **Pitch causes cursor mismatch** -- image shifts vertically but mouse clicks go to real screen coordinates
+**Overlay on wrong screen**
+Press `Ctrl+Alt+S`, change the monitor in the dropdown, restart the app.
 
-## Author
-
-**Peter Radziszewski** -- AirPin Extended (this fork)
+**Cursor in wrong place**
+This happens with pitch tracking (looking up/down). The image shifts but mouse clicks go to the real position. Pitch is disabled by default for this reason.
 
 ## Credits
 
-- **nomi-san** -- original [AirPin](https://github.com/nomi-san/airpin) project
-- **[arigandores (Vsevolod Lazuka)](https://github.com/arigandores)** -- AirPin fork with extended display support
-- **[verncat](https://github.com/verncat/RayNeo-Air-3S-Pro-OpenVR)** -- RayNeoSDK and reference IMU implementation
-- **[Parsec VDD](https://github.com/nomi-san/parsec-vdd)** -- Virtual display driver
+- **nomi-san** — original [AirPin](https://github.com/nomi-san/airpin) project
+- **[arigandores](https://github.com/arigandores)** — extended display support
+- **[verncat](https://github.com/verncat/RayNeo-Air-3S-Pro-OpenVR)** — RayNeoSDK and IMU implementation
+- **[Parsec VDD](https://github.com/nomi-san/parsec-vdd)** — Virtual display driver
 
 ## License
 

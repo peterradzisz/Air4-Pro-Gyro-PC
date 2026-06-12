@@ -9,6 +9,8 @@ import threading
 import time
 import logging
 import math
+import shutil
+import subprocess
 import numpy as np
 from ctypes import (
     c_uint8, c_uint16, c_uint32, c_uint64, c_int, c_float,
@@ -16,6 +18,33 @@ from ctypes import (
 )
 
 import config
+
+
+def _find_powershell():
+    """Resolve PowerShell executable path. Tries shutil.which first,
+    then common Windows locations. Returns None if not found."""
+    # Try PATH resolution first
+    ps = shutil.which('powershell')
+    if ps:
+        return ps
+    # Try PowerShell Core (pwsh)
+    ps = shutil.which('pwsh')
+    if ps:
+        return ps
+    # Try known Windows locations
+    import platform
+    candidates = []
+    windir = os.environ.get('SystemRoot', r'C:\Windows')
+    if platform.machine().endswith('64') and os.path.isdir(os.path.join(windir, 'SysWOW64')):
+        candidates.append(os.path.join(windir, 'SysWOW64', 'WindowsPowerShell', 'v1.0', 'powershell.exe'))
+    candidates.append(os.path.join(windir, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'))
+    for c in candidates:
+        if os.path.isfile(c):
+            return c
+    return None
+
+
+_POWERSHELL = _find_powershell()
 
 # ── SDK C types ──────────────────────────────────────────────────────────────
 
@@ -126,6 +155,12 @@ class ImuTracker:
         self._last_gyro_mag = 0.0
         self._last_raw_gyro = np.zeros(3)
 
+        self.usb_reset_enabled = True  # programmatically cycle USB before reconnect
+        self._reconnect_cooldown = 0.0   # monotonic timestamp: no reconnect before this
+        self._reconnect_fail_count = 0   # consecutive failed reconnect cycles
+        self._reconnect_max_fails = 3    # after this many, stop trying until manual replug
+        self._gave_up_logged = False
+
     def _find_dll(self):
         root = os.path.dirname(os.path.dirname(__file__))  # project root
         candidates = [
@@ -221,15 +256,33 @@ class ImuTracker:
                     if stall_start is None:
                         stall_start = time.monotonic()
                     elif time.monotonic() - stall_start > 3.0:
+                        now = time.monotonic()
+                        if now < self._reconnect_cooldown:
+                            continue
+                        if self._reconnect_fail_count >= self._reconnect_max_fails:
+                            # Already gave up — just skip, don't spam
+                            if not self._gave_up_logged:
+                                print(f"  IMU: gave up after {self._reconnect_max_fails} failed reconnects. Replug glasses USB to recover.")
+                                logging.warning(f"IMU: gave up after {self._reconnect_max_fails} failed reconnects. Replug required.")
+                                self._gave_up_logged = True
+                            continue
                         reconnect_attempts += 1
                         print(f"  IMU stalled ({reconnect_attempts}x), reconnecting...")
                         logging.warning(f"IMU stalled after {self._imu_count} samples, reconnecting (attempt {reconnect_attempts})")
+                        had_data_before = self._imu_count > 0
                         self._reconnect()
                         stall_start = None
+                        # After reconnect, set 5-second cooldown before we check stall again
+                        self._reconnect_cooldown = time.monotonic() + 5.0
+                        # If we had data before but now can't get any, count as failed cycle
+                        if had_data_before:
+                            self._reconnect_fail_count += 1
                 else:
                     last_data_count = self._imu_count
                     stall_start = None
                     reconnect_attempts = 0
+                    self._reconnect_fail_count = 0
+                    self._gave_up_logged = False
                 continue
             if evt.type == EVT_DETACHED:
                 self.connected = False
@@ -315,6 +368,56 @@ class ImuTracker:
                 rd = (self._raw_roll - self._roll + np.pi) % (2*np.pi) - np.pi
                 self._roll += rd * a
 
+    def _usb_reset(self):
+        """Programmatically disable and re-enable the USB device (VID=0x1BBB PID=0xAF50).
+        Uses PowerShell Disable-PnpDevice / Enable-PnpDevice.
+        Requires admin rights. Safe: only targets the specific VID/PID.
+        """
+        vid_pid = "VID_1BBB*PID_AF50"
+        try:
+            # Step 1: Find the instance ID
+            ps_cmd = (
+                f"Get-PnpDevice | Where-Object "
+                f"{{$_.InstanceId -like '*{vid_pid}*' -and $_.Status -ne 'Error'}} "
+                f"| Select-Object -ExpandProperty InstanceId"
+            )
+            result = subprocess.run(
+                [_POWERSHELL, '-NoProfile', '-Command', ps_cmd],
+                capture_output=True, text=True, timeout=5
+            )
+            instance_ids = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
+            if not instance_ids:
+                logging.warning("USB reset: no device found with %s", vid_pid)
+                return False
+
+            instance_id = instance_ids[0]  # Use first match
+            logging.info("USB reset: found device %s", instance_id)
+
+            # Step 2: Disable
+            subprocess.run(
+                [_POWERSHELL, '-NoProfile', '-Command',
+                 f'Disable-PnpDevice -InstanceId "{instance_id}" -Confirm:$false'],
+                capture_output=True, text=True, timeout=5
+            )
+            logging.info("USB reset: disabled %s", instance_id)
+            time.sleep(1.0)
+
+            # Step 3: Enable
+            subprocess.run(
+                [_POWERSHELL, '-NoProfile', '-Command',
+                 f'Enable-PnpDevice -InstanceId "{instance_id}" -Confirm:$false'],
+                capture_output=True, text=True, timeout=5
+            )
+            logging.info("USB reset: enabled %s", instance_id)
+            time.sleep(0.5)
+            return True
+        except subprocess.TimeoutExpired:
+            logging.warning("USB reset: PowerShell timed out")
+            return False
+        except Exception as e:
+            logging.warning("USB reset failed: %s", e)
+            return False
+
     def _reconnect(self):
         """Destroy and recreate the SDK connection when IMU stalls.
         Retries up to 3 times with increasing delay — handles zombie USB HID handles
@@ -324,7 +427,13 @@ class ImuTracker:
         self._cleanup_sdk()
         self.ctx = None
 
-        # Step 2: Retry Create+Start with backoff
+        # Step 2: Programmatically cycle USB device (if enabled)
+        if self.usb_reset_enabled:
+            if self._usb_reset():
+                # USB device was cycled — wait for Windows to re-enumerate
+                time.sleep(2.0)
+
+        # Step 3: Retry Create+Start with backoff
         for attempt in range(1, 4):
             time.sleep(0.5 * attempt)  # 0.5s, 1.0s, 1.5s
             try:

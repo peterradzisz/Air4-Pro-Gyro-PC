@@ -2,19 +2,20 @@
 Spatial Tracking Filter for AR head tracking.
 
 Tracks DELTA yaw (rate of change), not absolute position.
-This prevents yaw drift from pushing the image off-screen.
 
-Pipeline: raw gyro -> speed gate -> directional clamp -> output deadzone -> still-lock -> hard clamp -> output
+Pipeline: raw gyro -> speed gate -> integration -> directional clamp
+          -> output deadzone -> hard clamp -> output
 
-Anti-drift layers:
-  1. Input deadzone (speed_dead): filters gyro noise
-  2. Directional clamp: rejects movement pushing past max offset
-  3. Output deadzone: rejects tiny pixel changes when near-still
-  4. Still-lock: freezes position after X seconds of stillness
+Snap-back: when head is still after significant movement,
+exponentially decays output toward zero. Cancelled by any movement.
 """
 
 import math
 import time
+
+
+TRACKING = 0
+SNAP_BACK = 1
 
 
 class SpatialTrackingFilter:
@@ -34,18 +35,27 @@ class SpatialTrackingFilter:
         self.speed_full = speed_full
         self.gain = gain
         self.decay = 1.0
-        self.output_deadzone = 0.3  # hidden param, no slider
+        self.output_deadzone = 0.3
 
-        # Still-lock: freeze position when head is still for this long
-        self.still_lock_time = 0.5  # seconds, 0.0 = disabled
-        self._last_movement_time = time.monotonic()
-        self._locked = False
+        # Snap-back config
+        self.snap_speed = 2.5
+        self._snap_still_time = 0.4
+        self._snap_threshold = 60.0
+        self.snap_return = 0.5   # fraction of peak user must return before snap triggers
+
+        # Per-axis state
+        self._yaw_state = TRACKING
+        self._yaw_stillness = 0.0
+        self._yaw_peak = 0.0
+
+        self._pitch_state = TRACKING
+        self._pitch_stillness = 0.0
+        self._pitch_peak = 0.0
 
         self.output = 0.0
         self.pitch_output = 0.0
 
     def _responsiveness(self, gyro_speed):
-        """Smoothstep: 0 at speed_dead -> 1.0 at speed_full."""
         if gyro_speed <= self.speed_dead:
             return 0.0
         if gyro_speed >= self.speed_full:
@@ -55,78 +65,91 @@ class SpatialTrackingFilter:
         return s
 
     def _directional_clamp(self, current, delta, max_offset):
-        """Reject delta that pushes output further past max offset.
-        Always allows movement back toward center."""
         if max_offset <= 0 or delta == 0.0:
             return delta
-        # Near positive max and pushing further positive
         if current > max_offset * 0.9 and delta > 0:
             return 0.0
-        # Near negative max and pushing further negative
         if current < -max_offset * 0.9 and delta < 0:
             return 0.0
         return delta
 
     def update(self, yaw_angular_vel, gyro_speed, dt=1/60):
-        """Per-frame update (~60Hz)."""
-        # Reject spikes
         if abs(yaw_angular_vel) > math.radians(200):
             yaw_angular_vel = 0.0
 
-        # Still-lock: freeze when head is still for still_lock_time seconds
-        now = time.monotonic()
-        if gyro_speed > self.speed_dead * 2.0:
-            self._last_movement_time = now
-            self._locked = False
-        elif self.still_lock_time > 0.0 and not self._locked:
-            if now - self._last_movement_time > self.still_lock_time:
-                self._locked = True
+        # Snap-back state machine
+        if self._yaw_state == SNAP_BACK:
+            if gyro_speed > self.speed_dead * 1.5:
+                self._yaw_state = TRACKING
+                self._yaw_stillness = 0.0
+                self._yaw_peak = abs(self.output)
+            else:
+                decay_factor = max(0.0, 1.0 - self.snap_speed * dt)
+                self.output *= decay_factor
+                if abs(self.output) < 0.5:
+                    self.output = 0.0
+                    self._yaw_state = TRACKING
+                    self._yaw_stillness = 0.0
+                    self._yaw_peak = 0.0
+                return self.output
 
-        if self._locked:
-            return self.output
-
-        # Speed-gated integration
+        # TRACKING: normal integration
         resp = self._responsiveness(gyro_speed)
         delta_rad = yaw_angular_vel * dt
         delta_px = delta_rad * self.ppr * self.gain * resp
-
-        # Directional clamp: reject pushing past max
         delta_px = self._directional_clamp(self.output, delta_px, self.yaw_max_offset)
 
-        # Output deadzone: reject tiny changes when near-still
         if self.output_deadzone > 0.0 and abs(delta_px) < self.output_deadzone:
             if gyro_speed < self.speed_dead * 2.0:
                 delta_px = 0.0
 
         self.output += delta_px
 
-        # Decay (only when < 1.0)
         if self.decay < 1.0:
             self.output *= self.decay
 
-        # Hard clamp to max offset
         if self.yaw_max_offset > 0:
             self.output = max(-self.yaw_max_offset, min(self.yaw_max_offset, self.output))
+
+        # Trigger tracking
+        self._yaw_peak = max(self._yaw_peak, abs(self.output))
+        if gyro_speed < self.speed_dead * 2.0:
+            self._yaw_stillness += dt
+        else:
+            self._yaw_stillness = 0.0
+
+        if (self._yaw_stillness > self._snap_still_time
+                and self._yaw_peak > self._snap_threshold
+                and abs(self.output) < self._yaw_peak * self.snap_return
+                and self.snap_speed > 0.0):
+            self._yaw_state = SNAP_BACK
 
         return self.output
 
     def update_pitch(self, pitch_angular_vel, gyro_speed, dt=1/60):
-        """Per-frame pitch update."""
         if abs(pitch_angular_vel) > math.radians(200):
             pitch_angular_vel = 0.0
 
-        # Still-lock applies to pitch too
-        if self._locked:
-            return
+        if self._pitch_state == SNAP_BACK:
+            if gyro_speed > self.speed_dead * 1.5:
+                self._pitch_state = TRACKING
+                self._pitch_stillness = 0.0
+                self._pitch_peak = abs(self.pitch_output)
+            else:
+                decay_factor = max(0.0, 1.0 - self.snap_speed * dt)
+                self.pitch_output *= decay_factor
+                if abs(self.pitch_output) < 0.5:
+                    self.pitch_output = 0.0
+                    self._pitch_state = TRACKING
+                    self._pitch_stillness = 0.0
+                    self._pitch_peak = 0.0
+                return
 
         resp = self._responsiveness(gyro_speed)
         delta_rad = pitch_angular_vel * dt
         delta_px = delta_rad * self.ppr * self.gain * resp
-
-        # Directional clamp for pitch
         delta_px = self._directional_clamp(self.pitch_output, delta_px, self.pitch_max_offset)
 
-        # Output deadzone
         if self.output_deadzone > 0.0 and abs(delta_px) < self.output_deadzone:
             if gyro_speed < self.speed_dead * 2.0:
                 delta_px = 0.0
@@ -139,9 +162,24 @@ class SpatialTrackingFilter:
         if self.pitch_max_offset > 0:
             self.pitch_output = max(-self.pitch_max_offset, min(self.pitch_max_offset, self.pitch_output))
 
+        self._pitch_peak = max(self._pitch_peak, abs(self.pitch_output))
+        if gyro_speed < self.speed_dead * 2.0:
+            self._pitch_stillness += dt
+        else:
+            self._pitch_stillness = 0.0
+
+        if (self._pitch_stillness > self._snap_still_time
+                and self._pitch_peak > self._snap_threshold
+                and abs(self.pitch_output) < self._pitch_peak * self.snap_return
+                and self.snap_speed > 0.0):
+            self._pitch_state = SNAP_BACK
+
     def recenter(self):
-        """Snap output to zero (hotkey action)."""
         self.output = 0.0
         self.pitch_output = 0.0
-        self._locked = False
-        self._last_movement_time = time.monotonic()
+        self._yaw_state = TRACKING
+        self._yaw_stillness = 0.0
+        self._yaw_peak = 0.0
+        self._pitch_state = TRACKING
+        self._pitch_stillness = 0.0
+        self._pitch_peak = 0.0
