@@ -11,9 +11,9 @@
   "target_monitor": 0,
   "hide_cursor": true,
   "deadzone": 0.035,
-  "responsiveness": 0.82,
+  "responsiveness": 0.89,
   "pitch_range": 1.0,
   "yaw_range": 1.0,
-  "gain": 0.87,
+  "gain": 0.99,
   "decay": 1.0
 }
