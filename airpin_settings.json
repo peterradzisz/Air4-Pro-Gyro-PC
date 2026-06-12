@@ -15,5 +15,7 @@
   "pitch_range": 1.0,
   "yaw_range": 1.0,
   "gain": 0.99,
-  "decay": 1.0
+  "decay": 1.0,
+  "still_lock_time": 0.5,
+  "edge_zoom": 0.3
 }
