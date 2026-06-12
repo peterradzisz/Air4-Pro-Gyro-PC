@@ -173,6 +173,35 @@ def main():
     for d in displays:
         log.info(f"  [{d['index']}] {d['name']} @ ({d['x']},{d['y']}) {d['w']}x{d['h']}")
 
+    # ── Virtual Display Manager (Parsec VDD) ─────────────────────────────
+    vdd = VirtualDisplayManager()
+    print("Starting Virtual Display Manager...")
+    if not vdd.start():
+        print("  WARNING: Virtual displays not available. Side panels disabled.")
+        vdd = None
+
+
+    # ── Screen capture (DXGI — primary monitor) ──────────────────────────
+    # IMPORTANT: DXGI capture must start BEFORE the IMU tracker.
+    # dxcam uses comtypes which initializes COM as MTA. Starting IMU before
+    # DXGI can cause COM apartment model to interfere with USB HID polling.
+    print(f"Starting screen capture (monitor {args.monitor})...")
+    win_mgr = WindowManager(
+        capture_fps=capture_fps,
+        monitor_index=args.monitor,
+        monitor_x=target_disp['x'],
+        monitor_y=target_disp['y'],
+        monitor_w=target_disp['w'],
+        monitor_h=target_disp['h'],
+    )
+    if not win_mgr.start():
+        print("ERROR: Screen capture failed.")
+        if vdd:
+            vdd.stop()
+        return
+
+    log.info(f"Screen capture started: {win_mgr.capture.width}x{win_mgr.capture.height}")
+
     # ── IMU tracker ──────────────────────────────────────────────────────
     # Apply persisted settings to config
     config.PITCH_ENABLED = settings_manager.get('pitch_enabled', False)
@@ -194,33 +223,6 @@ def main():
 
     if tracker:
         log.info("IMU tracker started and recentered")
-
-    # ── Virtual Display Manager (Parsec VDD) ─────────────────────────────
-    vdd = VirtualDisplayManager()
-    print("Starting Virtual Display Manager...")
-    if not vdd.start():
-        print("  WARNING: Virtual displays not available. Side panels disabled.")
-        vdd = None
-
-    # ── Screen capture (DXGI — primary monitor) ──────────────────────────
-    print(f"Starting screen capture (monitor {args.monitor})...")
-    win_mgr = WindowManager(
-        capture_fps=capture_fps,
-        monitor_index=args.monitor,
-        monitor_x=target_disp['x'],
-        monitor_y=target_disp['y'],
-        monitor_w=target_disp['w'],
-        monitor_h=target_disp['h'],
-    )
-    if not win_mgr.start():
-        print("ERROR: Screen capture failed.")
-        if vdd:
-            vdd.stop()
-        if tracker:
-            tracker.stop()
-        return
-
-    log.info(f"Screen capture started: {win_mgr.capture.width}x{win_mgr.capture.height}")
 
     # Wait for first frame
     print("  Waiting for first frame...")

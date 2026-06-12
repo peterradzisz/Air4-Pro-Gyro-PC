@@ -255,6 +255,14 @@ class ImuTracker:
 
     def _poll_loop(self):
         evt = RAYNEO_Event()
+        # Isolate this thread from comtypes MTA apartment initialized by dxcam.
+        # Without this, the implicit MTA can interfere with USB HID polling.
+        try:
+            import comtypes
+            comtypes.CoInitialize()
+        except Exception:
+            pass
+
         last_data_count = 0
         stall_start = None
         reconnect_attempts = 0
