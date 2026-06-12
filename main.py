@@ -44,7 +44,7 @@ from airpin.hotkey_manager import HotkeyManager
 from airpin.audio_router import AudioRouter
 from airpin.virtual_display import VirtualDisplayManager
 from airpin import settings_manager
-from airpin.settings_panel import SettingsPanel, PANEL_X, PANEL_Y
+from airpin.settings_panel import SettingsPanel, PANEL_X, PANEL_Y, PANEL_W
 from OpenGL.GL import *
 
 # Module-level Windows API access
