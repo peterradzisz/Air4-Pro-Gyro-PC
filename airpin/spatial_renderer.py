@@ -225,11 +225,12 @@ class SpatialRenderer:
             self._cursor_hidden = False
 
     def draw_cursor(self, offset_x, offset_y, zoom=1.0):
-        """Draw cursor at correct visual position (legacy single-panel API)."""
+        """Draw cursor at correct visual position."""
         pt = ctypes.wintypes.POINT()
         user32.GetCursorPos(ctypes.byref(pt))
-        cx = pt.x * zoom + self.width * (1 - zoom) * 0.5 + offset_x
-        cy = pt.y * zoom + self.height * (1 - zoom) * 0.5 + offset_y
+        # Convert global cursor pos to local window coords, apply zoom, convert back
+        cx = (pt.x - self.virt_x) * zoom + self.virt_x + self.width * (1 - zoom) * 0.5 + offset_x
+        cy = (pt.y - self.virt_y) * zoom + self.virt_y + self.height * (1 - zoom) * 0.5 + offset_y
         self.draw_cursor_at(cx, cy)
 
     def draw_cursor_at(self, cx, cy):
@@ -435,13 +436,15 @@ class SpatialRenderer:
         glEnable(GL_BLEND)
         glColor4f(1, 1, 1, 1)
 
-        # Position: top-left with margin
+        # Position: top-left with margin (global desktop coords)
         margin = 20
+        mx = self.virt_x + margin
+        my = self.virt_y + margin
         glBegin(GL_QUADS)
-        glTexCoord2f(0, 1); glVertex2f(margin, margin)
-        glTexCoord2f(1, 1); glVertex2f(margin + hud_w, margin)
-        glTexCoord2f(1, 0); glVertex2f(margin + hud_w, margin + hud_h)
-        glTexCoord2f(0, 0); glVertex2f(margin, margin + hud_h)
+        glTexCoord2f(0, 1); glVertex2f(mx, my)
+        glTexCoord2f(1, 1); glVertex2f(mx + hud_w, my)
+        glTexCoord2f(1, 0); glVertex2f(mx + hud_w, my + hud_h)
+        glTexCoord2f(0, 0); glVertex2f(mx, my + hud_h)
         glEnd()
 
     def show_toast(self, text):

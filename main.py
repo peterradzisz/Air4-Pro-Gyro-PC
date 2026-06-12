@@ -571,11 +571,14 @@ def main():
                              GL_RGBA, GL_UNSIGNED_BYTE, data)
                 glEnable(GL_TEXTURE_2D)
                 glColor4f(1, 1, 1, 1)
+                # Global desktop coords: add renderer offset for non-primary monitors
+                gpx = renderer.virt_x + px
+                gpy = renderer.virt_y + py
                 glBegin(GL_QUADS)
-                glTexCoord2f(0, 1); glVertex2f(px, py)
-                glTexCoord2f(1, 1); glVertex2f(px + pw, py)
-                glTexCoord2f(1, 0); glVertex2f(px + pw, py + ph)
-                glTexCoord2f(0, 0); glVertex2f(px, py + ph)
+                glTexCoord2f(0, 1); glVertex2f(gpx, gpy)
+                glTexCoord2f(1, 1); glVertex2f(gpx + pw, gpy)
+                glTexCoord2f(1, 0); glVertex2f(gpx + pw, gpy + ph)
+                glTexCoord2f(0, 0); glVertex2f(gpx, gpy + ph)
                 glEnd()
 
         pygame.display.flip()
