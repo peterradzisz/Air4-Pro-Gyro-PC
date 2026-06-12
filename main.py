@@ -458,6 +458,13 @@ def main():
             if frame_count % 600 == 0 and tracker is not None:
                 log.info(f"IMU inactive: tracking_enabled={tracking_enabled}, imu_count={tracker.imu_count if tracker else 'no tracker'}, connected={tracker.connected if tracker else 'N/A'}")
 
+        # Edge zoom: progressive zoom based on distance from center
+        edge_zoom_setting = settings_manager.get('edge_zoom', 0.0)
+        if edge_zoom_setting > 0.0 and follow.yaw_max_offset > 0:
+            offset_ratio = abs(pixel_offset_x) / follow.yaw_max_offset
+            offset_ratio = min(1.0, offset_ratio)
+            zoom = zoom * (1.0 + edge_zoom_setting * offset_ratio)
+
         # ── Build panel list: main + virtual displays ──
         panels_render = []
         main_slot = win_mgr.slot

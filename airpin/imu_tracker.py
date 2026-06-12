@@ -267,7 +267,7 @@ class ImuTracker:
             # Save gyro magnitude for movement detection
             self._last_gyro_mag = float(np.sqrt(np.sum(gc * gc)))
 
-            self._last_raw_gyro = gyro.copy()
+            self._last_raw_gyro = gc.copy()  # bias-corrected for drift-free integration
             # Track peak gyro values for axis identification
             if not hasattr(self, '_peak_gyro'):
                 self._peak_gyro = [0.0, 0.0, 0.0]

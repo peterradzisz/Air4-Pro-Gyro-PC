@@ -69,5 +69,8 @@ ZOOM_STEP = 0.1
 ZOOM_MIN = 0.5
 ZOOM_MAX = 3.0
 
+# Edge zoom: progressive zoom at screen edges based on head offset
+EDGE_ZOOM_MAX = 0.30  # max additional zoom (30%) at max offset
+
 # Panel spacing (pixels between panels)
 PANEL_GAP = 50
