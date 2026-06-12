@@ -111,7 +111,7 @@ class SpatialRenderer:
     def init(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = f'{self.virt_x},{self.virt_y}'
         pygame.init()
-        pygame.display.set_caption("AirPin")
+        pygame.display.set_caption("AirPin Extended")
 
         pygame.display.gl_set_attribute(pygame.GL_ALPHA_SIZE, 8)
         flags = DOUBLEBUF | OPENGL | NOFRAME
