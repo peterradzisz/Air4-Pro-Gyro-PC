@@ -17,7 +17,7 @@ DEFAULTS = {
     "sensitivity":         0.5,   # 0.1 (very little) → 1.5 (very responsive)
     "invert_yaw":          False,
     "invert_pitch":        False,
-    "pitch_enabled":       False,
+    "pitch_enabled":       True,
     "yaw_decay":           1.0,
     # Movement detection (smooth follow)
     "move_start_rad":      0.052,  # ~3 deg/s — threshold to start tracking
@@ -28,6 +28,16 @@ DEFAULTS = {
     # Display targeting
     "target_monitor":       0,     # monitor index to capture and track
     "hide_cursor":          False,  # default OFF - keep system cursor visible
+    # Tracking sliders (Movies preset as default)
+    "yaw_range":            1.0,
+    "pitch_range":          1.0,
+    "deadzone":             0.035,
+    "gain":                 0.87,
+    "decay":                1.0,
+    "edge_zoom":            0.0,
+    "snap_speed":           2.5,
+    # USB reset
+    "usb_reset":            False,
 }
 
 
