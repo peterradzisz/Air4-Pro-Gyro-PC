@@ -526,6 +526,8 @@ def main():
         pipeline.enable_vignette = dp.enable_vignette
         pipeline.enable_chromatic = dp.enable_chromatic
         pipeline.enable_temperature = dp.enable_temperature
+        pipeline.hdr = dp.hdr
+        pipeline.enable_hdr = dp.enable_hdr
 
         renderer.render_panels(slots, offsets, pixel_offset_x, pixel_offset_y, display_zoom)
 

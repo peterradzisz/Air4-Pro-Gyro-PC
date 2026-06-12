@@ -25,6 +25,7 @@ _EFFECTS = [
     ("sharpness",   lambda v: f"Sharpness: {v:.0%} (edge clarity)",     0.00, 1.00,  100,  0.0),
     ("vignette",    lambda v: f"Vignette Fix: {v:.2f} (brighten edges)",0.00, 0.50,  100,  0.0),
     ("chromatic",   lambda v: f"Chroma Fix: {v:.3f} (color fringing)",  0.000,0.030, 1000, 0.0),
+    ("hdr",         lambda v: f"HDR Boost: {v:.1f}x (1.0 = off)",          0.5,  2.5,   10,  1.0),
     ("temperature", lambda v: f"Color Temp: {v:.0f}K (6500=neutral)",  4000, 9000,  100,  6500),
 ]
 
@@ -58,6 +59,8 @@ class DisplayQualityTab:
     def chromatic(self): return self._values["chromatic"]
     @property
     def temperature(self): return self._values["temperature"]
+    @property
+    def hdr(self): return self._values["hdr"]
 
     @property
     def enable_brightness(self): return self._enabled["brightness"]
@@ -71,6 +74,8 @@ class DisplayQualityTab:
     def enable_chromatic(self): return self._enabled["chromatic"]
     @property
     def enable_temperature(self): return self._enabled["temperature"]
+    @property
+    def enable_hdr(self): return self._enabled["hdr"]
 
     def reset_all(self):
         """Reset all display quality settings to defaults."""

@@ -21,12 +21,14 @@ class ShaderPipeline:
         self.vignette = 0.0
         self.chromatic = 0.0
         self.temperature = 6500.0
+        self.hdr = 1.0
         self.enable_brightness = False
         self.enable_gamma = False
         self.enable_sharpness = False
         self.enable_vignette = False
         self.enable_chromatic = False
         self.enable_temperature = False
+        self.enable_hdr = False
     def init(self):
         self._create_fbo()
         self._compile_shaders()
@@ -48,7 +50,8 @@ class ShaderPipeline:
         glClear(GL_COLOR_BUFFER_BIT)
         any_on = (self.enable_brightness or self.enable_gamma or
                   self.enable_sharpness or self.enable_vignette or
-                  self.enable_chromatic or self.enable_temperature)
+                  self.enable_chromatic or self.enable_temperature or
+                self.enable_hdr)
         if not any_on:
             self._draw_fbo_simple()
             return
@@ -68,6 +71,8 @@ class ShaderPipeline:
         glUniform1i(self._uniforms['u_enable_vignette'], GL_TRUE if self.enable_vignette else GL_FALSE)
         glUniform1i(self._uniforms['u_enable_chromatic'], GL_TRUE if self.enable_chromatic else GL_FALSE)
         glUniform1i(self._uniforms['u_enable_temperature'], GL_TRUE if self.enable_temperature else GL_FALSE)
+        glUniform1f(self._uniforms['u_hdr'], self.hdr)
+        glUniform1i(self._uniforms['u_enable_hdr'], GL_TRUE if self.enable_hdr else GL_FALSE)
         glBindBuffer(GL_ARRAY_BUFFER, self._quad_vbo)
         pos_loc = glGetAttribLocation(self._program, 'position')
         tc_loc = glGetAttribLocation(self._program, 'texcoord')
@@ -142,7 +147,7 @@ class ShaderPipeline:
         for name in ['u_texture', 'u_brightness', 'u_gamma', 'u_sharpness',
                       'u_vignette', 'u_chromatic', 'u_temperature',
                       'u_enable_brightness', 'u_enable_gamma', 'u_enable_sharpness',
-                      'u_enable_vignette', 'u_enable_chromatic', 'u_enable_temperature']:
+                      'u_enable_vignette', 'u_enable_chromatic', 'u_enable_temperature', 'u_hdr', 'u_enable_hdr']:
             self._uniforms[name] = glGetUniformLocation(self._program, name)
 
     def _create_quad(self):
@@ -168,4 +173,5 @@ class ShaderPipeline:
     def any_enabled(self):
         return (self.enable_brightness or self.enable_gamma or
                 self.enable_sharpness or self.enable_vignette or
-                self.enable_chromatic or self.enable_temperature)
+                self.enable_chromatic or self.enable_temperature or
+                self.enable_hdr)
