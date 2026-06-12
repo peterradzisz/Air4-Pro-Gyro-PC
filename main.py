@@ -274,10 +274,7 @@ def main():
     log.info(f"Renderer initialized: {renderer.width}x{renderer.height} at ({renderer.virt_x},{renderer.virt_y}), hwnd={renderer._hwnd}")
     log.info(f"Target display: {target_disp['name']} ({target_disp['w']}x{target_disp['h']}) at ({target_disp['x']},{target_disp['y']})")
 
-    # System cursor hiding is done dynamically per-frame based on cursor position.
-    # When cursor is on glasses, we hide system cursor and draw GL cursor at shifted position.
-    # When cursor is on PC monitor, system cursor is shown normally.
-    _cursor_hidden_on_glasses = False
+    # Cursor state
 
     # ── Hotkeys ──────────────────────────────────────────────────────────
     hotkeys = HotkeyManager()
@@ -509,25 +506,14 @@ def main():
         renderer.render_panels(slots, offsets, pixel_offset_x, pixel_offset_y, display_zoom)
 
         # -- Cursor --
-        # Check if cursor is on the glasses (target) monitor
+        # The overlay window has a NULL class cursor so Windows never draws
+        # the system cursor over our window. We only draw the GL cursor here.
         pt = ctypes.wintypes.POINT()
         user32.GetCursorPos(ctypes.byref(pt))
         cursor_on_glasses = (target_disp['x'] <= pt.x < target_disp['x'] + target_disp['w'] and
                              target_disp['y'] <= pt.y < target_disp['y'] + target_disp['h'])
-
-        if cursor_on_glasses:
-            # Always hide system cursor on glasses (wrong position due to tracking)
-            if not _cursor_hidden_on_glasses:
-                renderer._hide_system_cursor()
-                _cursor_hidden_on_glasses = True
-            # Draw GL cursor at shifted position when setting is ON
-            if settings_manager.get("hide_cursor", True):
-                renderer.draw_cursor(pixel_offset_x, pixel_offset_y, display_zoom)
-        else:
-            # Cursor is on PC monitor: restore system cursor
-            if _cursor_hidden_on_glasses:
-                renderer._show_system_cursor()
-                _cursor_hidden_on_glasses = False
+        if cursor_on_glasses and settings_manager.get("hide_cursor", True):
+            renderer.draw_cursor(pixel_offset_x, pixel_offset_y, display_zoom)
         # ── HUD ──
         if show_hud:
             n_vdd = len(vdd.get_displays()) if vdd else 0
@@ -588,8 +574,7 @@ def main():
 
     # ── Cleanup (cursor first, then VDD, then everything else) ───────────
     print("\nShutting down...")
-    if _cursor_hidden_on_glasses:
-        renderer._show_system_cursor()
+
     side_capture_running = False
     side_captures.clear()
     if vdd:

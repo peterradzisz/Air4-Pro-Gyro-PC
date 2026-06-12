@@ -90,6 +90,15 @@ class SpatialRenderer:
                                   self.virt_x, self.virt_y, self.width, self.height,
                                   win32con.SWP_NOACTIVATE | win32con.SWP_SHOWWINDOW)
 
+            # Re-apply NULL cursor after window reinit
+            null_cursor = user32.LoadCursorW(None, 0)
+            if not null_cursor:
+                and_mask = (ctypes.c_ubyte * 1)(0xFF)
+                xor_mask = (ctypes.c_ubyte * 1)(0x00)
+                null_cursor = user32.CreateCursor(None, 0, 0, 1, 1, and_mask, xor_mask)
+            if null_cursor:
+                user32.SetClassLongPtrW(hwnd, -12, null_cursor)
+
         self._setup_gl()
         # Invalidate all textures (GL context was recreated)
         self.invalidate_textures()
@@ -139,6 +148,17 @@ class SpatialRenderer:
                 self.virt_x, self.virt_y, self.width, self.height,
                 win32con.SWP_NOACTIVATE | win32con.SWP_SHOWWINDOW
             )
+
+            # 5. Set NULL cursor on the overlay window class.
+            # Prevents Windows from drawing the system cursor over our window.
+            # The GL cursor drawn by draw_cursor() is the only cursor on glasses.
+            null_cursor = user32.LoadCursorW(None, 0)
+            if not null_cursor:
+                and_mask = (ctypes.c_ubyte * 1)(0xFF)
+                xor_mask = (ctypes.c_ubyte * 1)(0x00)
+                null_cursor = user32.CreateCursor(None, 0, 0, 1, 1, and_mask, xor_mask)
+            if null_cursor:
+                user32.SetClassLongPtrW(hwnd, -12, null_cursor)  # GCLP_HCURSOR
 
         self._setup_gl()
         self._hud_font = pygame.font.SysFont("segoeui", 18)
@@ -225,13 +245,16 @@ class SpatialRenderer:
             self._cursor_hidden = False
 
     def draw_cursor(self, offset_x, offset_y, zoom=1.0):
-        """Draw cursor at correct visual position."""
+        """Draw cursor at the real Windows cursor position.
+        
+        The image shifts with head tracking but the cursor stays at its real
+        Windows position. The GL cursor should match exactly where Windows
+        thinks the cursor is, so the user sees it at the correct position
+        relative to the shifted image content.
+        """
         pt = ctypes.wintypes.POINT()
         user32.GetCursorPos(ctypes.byref(pt))
-        # Convert global cursor pos to local window coords, apply zoom, convert back
-        cx = (pt.x - self.virt_x) * zoom + self.virt_x + self.width * (1 - zoom) * 0.5 + offset_x
-        cy = (pt.y - self.virt_y) * zoom + self.virt_y + self.height * (1 - zoom) * 0.5 + offset_y
-        self.draw_cursor_at(cx, cy)
+        self.draw_cursor_at(float(pt.x), float(pt.y))
 
     def draw_cursor_at(self, cx, cy):
         """Draw the cursor sprite at the given screen coordinates."""

@@ -17,5 +17,5 @@
   "snap_speed": 2.5,
   "deadzone": 0.035,
   "decay": 1.0,
-  "usb_reset": false
+  "usb_reset": true
 }
