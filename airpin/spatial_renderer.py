@@ -102,8 +102,8 @@ class SpatialRenderer:
         self._setup_gl()
         # Invalidate all textures (GL context was recreated)
         self.invalidate_textures()
-        self._hud_font = pygame.font.SysFont("segoeui", 18)
-        self._hud_font_big = pygame.font.SysFont("segoeui", 24, bold=True)
+        self._hud_font = pygame.font.SysFont("segoeui", 20)
+        self._hud_font_big = pygame.font.SysFont("segoeui", 28, bold=True)
         self._hud_tex = glGenTextures(1)
         self._cursor_tex = self._create_cursor_texture()
         print(f"  Overlay resized: {self.width}x{self.height} at ({self.virt_x},{self.virt_y})")
@@ -161,8 +161,8 @@ class SpatialRenderer:
                 user32.SetClassLongPtrW(hwnd, -12, null_cursor)  # GCLP_HCURSOR
 
         self._setup_gl()
-        self._hud_font = pygame.font.SysFont("segoeui", 18)
-        self._hud_font_big = pygame.font.SysFont("segoeui", 24, bold=True)
+        self._hud_font = pygame.font.SysFont("segoeui", 20)
+        self._hud_font_big = pygame.font.SysFont("segoeui", 28, bold=True)
         self._hud_tex = glGenTextures(1)
         self._cursor_tex = self._create_cursor_texture()
         self._initialized = True
@@ -360,8 +360,9 @@ class SpatialRenderer:
 
     def draw_hud(self, hud_data):
         """
-        Draw a clean, readable HUD panel.
-        hud_data: dict with keys like 'tracking', 'zoom', 'yaw', 'pitch', 'fps', etc.
+        Draw a clean, readable HUD panel with IMU status indicator.
+        hud_data: dict with keys like 'tracking', 'zoom', 'yaw', 'pitch', 'imu_status', etc.
+        imu_status: 'connected' | 'stalled' | 'disabled'
         """
         if not hud_data:
             return
@@ -371,21 +372,33 @@ class SpatialRenderer:
         font_sm = self._hud_font
 
         # Build HUD surface
-        hud_w = 560
-        hud_h = 200
+        hud_w = 600
+        hud_h = 210
         s = pygame.Surface((hud_w, hud_h), pygame.SRCALPHA)
 
-        # Background: rounded-ish dark panel
+        # Background: rounded dark panel
         s.fill((0, 0, 0, 0))
-        pygame.draw.rect(s, (15, 15, 25, 200), (0, 0, hud_w, hud_h), border_radius=12)
-        pygame.draw.rect(s, (60, 130, 220, 100), (0, 0, hud_w, hud_h), width=2, border_radius=12)
+        pygame.draw.rect(s, (15, 15, 25, 220), (0, 0, hud_w, hud_h), border_radius=12)
+        pygame.draw.rect(s, (60, 130, 220, 120), (0, 0, hud_w, hud_h), width=2, border_radius=12)
 
         y = pad
 
-        # Title bar
+        # Title + IMU status dot
         title = "AirPin"
         ts = font_big.render(title, True, (100, 180, 255))
         s.blit(ts, (pad, y))
+
+        # IMU status dot next to title
+        imu_status = hud_data.get('imu_status', 'disabled')
+        dot_x = pad + ts.get_width() + 12
+        dot_y = y + ts.get_height() // 2
+        if imu_status == 'connected':
+            dot_color = (40, 200, 80)  # green
+        elif imu_status == 'stalled':
+            dot_color = (220, 60, 60)  # red
+        else:
+            dot_color = (100, 100, 100)  # gray
+        pygame.draw.circle(s, dot_color, (dot_x, dot_y), 6)
 
         # Status pills
         pills = []
@@ -403,48 +416,49 @@ class SpatialRenderer:
             px -= pw + 16
             pygame.draw.rect(s, pill_color, (px - 2, y + 2, pw + 8, ph + 4), border_radius=8)
             s.blit(pill_surf, (px + 2, y + 4))
-        y += 36
+        y += 38
 
         # Separator
-        pygame.draw.line(s, (60, 80, 120, 80), (pad, y), (hud_w - pad, y))
+        pygame.draw.line(s, (60, 80, 120, 100), (pad, y), (hud_w - pad, y))
         y += 10
 
-        # Info rows
+        # Info rows — higher contrast
         zoom = hud_data.get('zoom', 1.0)
         yaw_deg = hud_data.get('yaw', 0.0)
         pitch_deg = hud_data.get('pitch', 0.0)
-        cap_w = hud_data.get('cap_w', 0)
-        cap_h = hud_data.get('cap_h', 0)
 
         panel_names = hud_data.get('panels', [])
 
         rows = [
-            (f"Zoom: {zoom:.0%}   Panels: {len(panel_names)}", (200, 220, 255)),
-            (f"Yaw: {yaw_deg:+6.1f}    Pitch: {pitch_deg:+6.1f}", (170, 200, 230)),
+            (f"Zoom: {zoom:.0%}   Panels: {len(panel_names)}", (230, 240, 255)),
+            (f"Yaw: {yaw_deg:+6.1f}    Pitch: {pitch_deg:+6.1f}", (220, 235, 255)),
         ]
         if len(panel_names) > 1:
             panels_str = " | ".join(panel_names)
-            rows.append((f"[{panels_str}]", (160, 180, 200)))
+            rows.append((f"[{panels_str}]", (190, 210, 230)))
         for text, color in rows:
             ts = font_sm.render(text, True, color)
             s.blit(ts, (pad, y))
-            y += 24
+            y += 26
 
-        # Hotkeys row
+        # Hotkeys row — expanded with all shortcuts
         y += 4
         keys = [
             ("R", "Recenter"),
             ("T", "Track"),
             ("P", "Pitch"),
+            ("S", "Settings"),
             ("+/-", "Zoom"),
+            ("0", "Reset"),
+            ("I", "Invert"),
             ("H", "HUD"),
+            ("Q", "Quit"),
         ]
         x = pad
         for key, label in keys:
-            # Key badge
-            badge = font_sm.render(key, True, (200, 200, 200))
+            badge = font_sm.render(key, True, (220, 220, 220))
             bw, bh = badge.get_size()
-            pygame.draw.rect(s, (40, 50, 70, 180), (x - 2, y, bw + 6, bh + 4), border_radius=4)
+            pygame.draw.rect(s, (40, 50, 70, 200), (x - 2, y, bw + 6, bh + 4), border_radius=4)
             s.blit(badge, (x + 1, y + 2))
             x += bw + 12
 

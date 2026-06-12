@@ -295,6 +295,11 @@ def main():
     print("  Q        Quit (removes virtual displays)")
     print()
 
+    # First-run welcome toast
+    if not settings_manager.get('first_run_done', False):
+        renderer.show_toast("Welcome! Turn head to look around. Ctrl+Alt+S for settings.")
+        settings_manager.set('first_run_done', True)
+
     # ── Main loop ────────────────────────────────────────────────────────
     clock = pygame.time.Clock()
     running = True
@@ -466,6 +471,8 @@ def main():
             # Diagnostic: why is head tracking not active?
             if frame_count % 600 == 0 and tracker is not None:
                 log.info(f"IMU inactive: tracking_enabled={tracking_enabled}, imu_count={tracker.imu_count if tracker else 'no tracker'}, connected={tracker.connected if tracker else 'N/A'}")
+                if tracker and not tracker.connected:
+                    renderer.show_toast("Head tracking lost - Ctrl+Alt+R to recenter")
 
         # Edge zoom: progressive zoom based on distance from center
         # Applied to a separate display_zoom so it doesn't compound into base zoom
@@ -517,6 +524,13 @@ def main():
         # ── HUD ──
         if show_hud:
             n_vdd = len(vdd.get_displays()) if vdd else 0
+            # Determine IMU status for HUD indicator
+            imu_status = 'disabled'
+            if tracker:
+                if tracker.connected and tracker.imu_count > 0:
+                    imu_status = 'connected'
+                else:
+                    imu_status = 'stalled'
             renderer.draw_hud({
                 'tracking': tracking_enabled,
                 'pitch_enabled': config.PITCH_ENABLED,
@@ -526,6 +540,7 @@ def main():
                 'cap_w': win_mgr.capture.width,
                 'cap_h': win_mgr.capture.height,
                 'panels': [f"Main"] + [f"VDD-{d[2]}" for d in (vdd.get_displays() if vdd else [])],
+                'imu_status': imu_status,
             })
         renderer.draw_toast()
 

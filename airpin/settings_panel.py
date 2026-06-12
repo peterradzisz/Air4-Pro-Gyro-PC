@@ -154,6 +154,15 @@ class SettingsPanel:
         if DROP_X <= mx <= DROP_X + DROP_W and dy <= my <= dy + DROP_H:
             if clicked: self._drop_open = not self._drop_open
             return True
+        # Close button (X) click
+        x_btn_size = 30
+        x_btn_x = PANEL_W - x_btn_size - 10
+        x_btn_y = 8
+        if x_btn_x <= mx <= x_btn_x + x_btn_size and x_btn_y <= my <= x_btn_y + x_btn_size:
+            if clicked:
+                self._visible = False
+            return True
+
         vals = [self._yaw_range, self._pitch_range, self._deadzone, self._gain, self._decay, self._edge_zoom, self._snap_speed]
         keys = ["yaw_range", "pitch_range", "deadzone", "gain", "decay", "edge_zoom", "snap_speed"]
         for idx in range(7):
@@ -209,6 +218,14 @@ class SettingsPanel:
         pygame.draw.rect(s, (15, 15, 25, 210), (0, 0, PANEL_W, PANEL_H), border_radius=10)
         pygame.draw.rect(s, (60, 130, 220, 120), (0, 0, PANEL_W, PANEL_H), width=2, border_radius=10)
         s.blit(self._font.render("Settings", True, (100, 180, 255)), (20, 16))
+        # Close button (X) in top-right corner
+        x_btn_size = 30
+        x_btn_x = PANEL_W - x_btn_size - 10
+        x_btn_y = 8
+        pygame.draw.rect(s, (50, 50, 60, 150), (x_btn_x, x_btn_y, x_btn_size, x_btn_size), border_radius=4)
+        x_txt = self._font.render("X", True, (180, 180, 190))
+        s.blit(x_txt, (x_btn_x + (x_btn_size - x_txt.get_width()) // 2,
+                        x_btn_y + (x_btn_size - x_txt.get_height()) // 2))
         vals = [self._yaw_range, self._pitch_range, self._deadzone, self._gain, self._decay, self._edge_zoom, self._snap_speed]
         for idx in range(7):
             sx, sy, sw, sh = self._slider_geom(idx)
