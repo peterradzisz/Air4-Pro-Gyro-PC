@@ -89,7 +89,7 @@ class DisplayQualityTab:
 
     def _effect_y(self, idx):
         """Y position for effect row (label at y-22, slider at y, min/max at y+16)."""
-        return 70 + idx * 65
+        return 50 + idx * 55
 
     def _knob_x(self, key, val):
         """Calculate knob X position from value."""

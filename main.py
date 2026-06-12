@@ -566,40 +566,62 @@ def main():
             # Get actual cursor position (GetCursorPos works even with transparent windows)
             pt = ctypes.wintypes.POINT()
             user32.GetCursorPos(ctypes.byref(pt))
-            panel_mx = pt.x - renderer.virt_x - PANEL_X
-            panel_my = pt.y - renderer.virt_y - PANEL_Y
             mouse_buttons = pygame.mouse.get_pressed()
             mouse_down_now = mouse_buttons[0]
             clicked = mouse_down_now and not _prev_mouse_down  # edge detection: only first frame
-            settings_panel.handle_mouse(panel_mx, panel_my, clicked)
-            if not mouse_down_now:
-                settings_panel.handle_mouse_up()
+
+            # Panel 1 (Tracking): at (PANEL_X, PANEL_Y)
+            p1_mx = pt.x - renderer.virt_x - PANEL_X
+            p1_my = pt.y - renderer.virt_y - PANEL_Y
+            # Panel 2 (Display Quality): at (PANEL_X + PANEL_W + 10, PANEL_Y), height 420
+            p2_x = PANEL_X + PANEL_W + 10
+            p2_mx = pt.x - renderer.virt_x - p2_x
+            p2_my = pt.y - renderer.virt_y - PANEL_Y
+
+            # Route to the correct panel based on cursor position
+            if 0 <= p2_mx <= PANEL_W and 0 <= p2_my <= 420:
+                settings_panel.handle_display_mouse(p2_mx, p2_my, clicked)
+                if not mouse_down_now:
+                    settings_panel.handle_mouse_up()
+            else:
+                settings_panel.handle_mouse(p1_mx, p1_my, clicked)
+                if not mouse_down_now:
+                    settings_panel.handle_mouse_up()
             _prev_mouse_down = mouse_down_now
 
         # -- Settings panel render --
         if settings_panel.visible:
             panel_result = settings_panel.render()
             if panel_result:
-                surf, px, py, pw, ph = panel_result
-                data = pygame.image.tostring(surf, "RGBA", True)
-                if settings_panel._gl_tex is None:
-                    settings_panel._gl_tex = glGenTextures(1)
-                glBindTexture(GL_TEXTURE_2D, settings_panel._gl_tex)
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pw, ph, 0,
-                             GL_RGBA, GL_UNSIGNED_BYTE, data)
-                glEnable(GL_TEXTURE_2D)
-                glColor4f(1, 1, 1, 1)
-                # Global desktop coords: add renderer offset for non-primary monitors
-                gpx = renderer.virt_x + px
-                gpy = renderer.virt_y + py
-                glBegin(GL_QUADS)
-                glTexCoord2f(0, 1); glVertex2f(gpx, gpy)
-                glTexCoord2f(1, 1); glVertex2f(gpx + pw, gpy)
-                glTexCoord2f(1, 0); glVertex2f(gpx + pw, gpy + ph)
-                glTexCoord2f(0, 0); glVertex2f(gpx, gpy + ph)
-                glEnd()
+                # panel_result is now two tuples: (tracking_panel, display_panel)
+                if not isinstance(panel_result[0], tuple):
+                    # Fallback: single panel
+                    panels_to_draw = [panel_result]
+                else:
+                    panels_to_draw = list(panel_result)
+                for i, pdata in enumerate(panels_to_draw):
+                    surf, px, py, pw, ph = pdata
+                    data = pygame.image.tostring(surf, "RGBA", True)
+                    tex_id_name = "_gl_tex" if i == 0 else "_gl_tex2"
+                    tex_id = getattr(settings_panel, tex_id_name, None)
+                    if tex_id is None:
+                        tex_id = glGenTextures(1)
+                        setattr(settings_panel, tex_id_name, tex_id)
+                    glBindTexture(GL_TEXTURE_2D, tex_id)
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pw, ph, 0,
+                                 GL_RGBA, GL_UNSIGNED_BYTE, data)
+                    glEnable(GL_TEXTURE_2D)
+                    glColor4f(1, 1, 1, 1)
+                    gpx = renderer.virt_x + px
+                    gpy = renderer.virt_y + py
+                    glBegin(GL_QUADS)
+                    glTexCoord2f(0, 1); glVertex2f(gpx, gpy)
+                    glTexCoord2f(1, 1); glVertex2f(gpx + pw, gpy)
+                    glTexCoord2f(1, 0); glVertex2f(gpx + pw, gpy + ph)
+                    glTexCoord2f(0, 0); glVertex2f(gpx, gpy + ph)
+                    glEnd()
 
         pygame.display.flip()
         clock.tick(config.TARGET_FPS)

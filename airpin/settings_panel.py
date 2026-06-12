@@ -62,7 +62,6 @@ class SettingsPanel:
         self._edge_zoom = settings_manager.get("edge_zoom", 0.0)
         self._snap_speed = settings_manager.get("snap_speed", 2.5)
         self._usb_reset = settings_manager.get("usb_reset", True)
-        self._display_tab = False  # False=Tracking tab, True=Display tab
         self._display = DisplayQualityTab()
 
     @property
@@ -168,19 +167,6 @@ class SettingsPanel:
                 self._visible = False
             return True
 
-        # Tab buttons: Tracking (x=20, w=175) and Display (x=205, w=175) at y=40
-        if 40 <= my <= 66:
-            if 20 <= mx <= 195 and clicked:
-                self._display_tab = False
-                return True
-            if 205 <= mx <= 380 and clicked:
-                self._display_tab = True
-                return True
-
-        # Display tab: delegate mouse events
-        if self._display_tab:
-            return self._display.handle_mouse(mx, my, clicked)
-
         vals = [self._yaw_range, self._pitch_range, self._deadzone, self._gain, self._decay, self._edge_zoom, self._snap_speed]
         keys = ["yaw_range", "pitch_range", "deadzone", "gain", "decay", "edge_zoom", "snap_speed"]
         for idx in range(7):
@@ -220,6 +206,11 @@ class SettingsPanel:
             return True
         return False
 
+    def handle_display_mouse(self, mx, my, clicked):
+        """Route mouse events to the Display Quality panel (panel 2)."""
+        if not self._visible: return False
+        return self._display.handle_mouse(mx, my, clicked)
+
     def handle_mouse_up(self): self._dragging = None; self._display.handle_mouse_up()
 
     def _apply_preset(self, name):
@@ -233,11 +224,14 @@ class SettingsPanel:
     def render(self):
         if not self._visible: return None
         self._ensure_font()
-        s = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)
-        pygame.draw.rect(s, (15, 15, 25, 210), (0, 0, PANEL_W, PANEL_H), border_radius=10)
-        pygame.draw.rect(s, (60, 130, 220, 120), (0, 0, PANEL_W, PANEL_H), width=2, border_radius=10)
+
+        # ── Panel 1: Tracking Settings ──
+        p1_h = 780
+        s = pygame.Surface((PANEL_W, p1_h), pygame.SRCALPHA)
+        pygame.draw.rect(s, (15, 15, 25, 210), (0, 0, PANEL_W, p1_h), border_radius=10)
+        pygame.draw.rect(s, (60, 130, 220, 120), (0, 0, PANEL_W, p1_h), width=2, border_radius=10)
         s.blit(self._font.render("Settings", True, (100, 180, 255)), (20, 16))
-        # Close button (X) in top-right corner
+        # Close button
         x_btn_size = 30
         x_btn_x = PANEL_W - x_btn_size - 10
         x_btn_y = 8
@@ -245,39 +239,8 @@ class SettingsPanel:
         x_txt = self._font.render("X", True, (180, 180, 190))
         s.blit(x_txt, (x_btn_x + (x_btn_size - x_txt.get_width()) // 2,
                         x_btn_y + (x_btn_size - x_txt.get_height()) // 2))
-        # Tab buttons: Tracking | Display (always visible, clear contrast)
-        tab_y = 40
-        # Active tab: bright blue. Inactive: medium gray with border
-        if not self._display_tab:
-            track_color = (50, 120, 200, 240)
-            track_text = (255, 255, 255)
-            display_color = (60, 60, 80, 200)
-            display_text = (180, 190, 210)
-        else:
-            track_color = (60, 60, 80, 200)
-            track_text = (180, 190, 210)
-            display_color = (50, 120, 200, 240)
-            display_text = (255, 255, 255)
-        pygame.draw.rect(s, track_color, (20, tab_y, 175, 26), border_radius=6)
-        pygame.draw.rect(s, display_color, (205, tab_y, 175, 26), border_radius=6)
-        # Border on inactive tab so it is visible
-        pygame.draw.rect(s, (100, 110, 140, 180), (20, tab_y, 175, 26), width=1, border_radius=6)
-        pygame.draw.rect(s, (100, 110, 140, 180), (205, tab_y, 175, 26), width=1, border_radius=6)
-        tt = self._font_sm.render("Tracking", True, track_text)
-        dt = self._font_sm.render("Display", True, display_text)
-        s.blit(tt, (20 + (175 - tt.get_width()) // 2, tab_y + 4))
-        s.blit(dt, (205 + (175 - dt.get_width()) // 2, tab_y + 4))
 
-        if self._display_tab:
-            # Display Quality tab
-            self._display.render(s)
-        else:
-            # Tracking tab (existing sliders)
-            self._render_tracking_tab(s)
-        return s, PANEL_X, PANEL_Y, PANEL_W, PANEL_H
-
-    def _render_tracking_tab(self, s):
-        """Render the tracking sliders tab content."""
+        # Tracking sliders
         vals = [self._yaw_range, self._pitch_range, self._deadzone, self._gain, self._decay, self._edge_zoom, self._snap_speed]
         for idx in range(7):
             sx, sy, sw, sh = self._slider_geom(idx)
@@ -291,6 +254,7 @@ class SettingsPanel:
             pygame.draw.circle(s, (60, 140, 220), (int(kx), sy + sh // 2), KNOB_R - 3)
             s.blit(self._font_sm.render(str(mn), True, (120, 130, 150)), (sx, sy + 16))
             s.blit(self._font_sm.render(str(mx2), True, (120, 130, 150)), (sx + sw - 15, sy + 16))
+
         # Preset buttons
         pygame.draw.rect(s, (40, 80, 120, 200), (20, 545, 170, 30), border_radius=6)
         pt1 = self._font_sm.render("Movies", True, (200, 220, 255))
@@ -298,12 +262,16 @@ class SettingsPanel:
         pygame.draw.rect(s, (120, 60, 40, 200), (210, 545, 170, 30), border_radius=6)
         pt2 = self._font_sm.render("Games", True, (200, 220, 255))
         s.blit(pt2, (210 + (170 - pt2.get_width()) // 2, 550))
+
+        # Reset
         bc = (80, 50, 50, 220) if self._reset_hovered else (50, 50, 60, 200)
         pygame.draw.rect(s, bc, (BTN_X, BTN_Y, BTN_W, BTN_H), border_radius=6)
         pygame.draw.rect(s, (100, 100, 120, 150), (BTN_X, BTN_Y, BTN_W, BTN_H), width=1, border_radius=6)
-        bt = self._font_sm.render("Reset All to Defaults", True, (220, 200, 200))
+        bt = self._font_sm.render("Reset All", True, (220, 200, 200))
         tw, th = bt.get_size()
         s.blit(bt, (BTN_X + (BTN_W - tw) // 2, BTN_Y + (BTN_H - th) // 2))
+
+        # Monitor dropdown
         y = 620
         s.blit(self._font_sm.render("Target Monitor:", True, (170, 200, 230)), (20, y))
         y += 20
@@ -324,14 +292,28 @@ class SettingsPanel:
                 y += 28
         y = 690
         on_off = "ON" if self._hide_cursor else "OFF"
-        cl = f"Show Cursor on Glasses: {on_off}"
+        cl = f"Show Cursor: {on_off}"
         cc = (40, 120, 60, 180) if self._hide_cursor else (100, 50, 50, 180)
         pygame.draw.rect(s, cc, (20, y, DROP_W, 28), border_radius=6)
         s.blit(self._font_sm.render(cl, True, (220, 220, 220)), (28, y + 4))
         y = 725
         usb_on_off = "ON" if self._usb_reset else "OFF"
-        usb_label = f"USB Reset on Stall: {usb_on_off}"
+        usb_label = f"USB Reset: {usb_on_off}"
         usb_cc = (40, 120, 60, 180) if self._usb_reset else (100, 50, 50, 180)
         pygame.draw.rect(s, usb_cc, (20, y, DROP_W, 28), border_radius=6)
         s.blit(self._font_sm.render(usb_label, True, (220, 220, 220)), (28, y + 4))
         s.blit(self._font_sm.render("* Restart for monitor change", True, (120, 120, 140)), (20, 758))
+
+        # ── Panel 2: Display Quality ──
+        p2_w = PANEL_W
+        p2_h = 420
+        s2 = pygame.Surface((p2_w, p2_h), pygame.SRCALPHA)
+        pygame.draw.rect(s2, (15, 15, 25, 210), (0, 0, p2_w, p2_h), border_radius=10)
+        pygame.draw.rect(s2, (60, 130, 220, 120), (0, 0, p2_w, p2_h), width=2, border_radius=10)
+        s2.blit(self._font.render("Display Quality", True, (100, 180, 255)), (20, 10))
+        s2.blit(self._font_sm.render("Toggle ON/OFF, then adjust slider", True, (140, 150, 170)), (20, 32))
+        # Render display quality controls onto s2 (offset by 50px for header)
+        # We use a subsurface trick: blit display controls at y offset
+        self._display.render(s2)
+
+        return (s, PANEL_X, PANEL_Y, PANEL_W, p1_h), (s2, PANEL_X + PANEL_W + 10, PANEL_Y, p2_w, p2_h)
