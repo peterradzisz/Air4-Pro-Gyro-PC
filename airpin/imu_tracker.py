@@ -316,44 +316,45 @@ class ImuTracker:
                 self._roll += rd * a
 
     def _reconnect(self):
-        """Destroy and recreate the SDK connection when IMU stalls."""
-        try:
-            self.sdk.Rayneo_DisableImu(self.ctx)
-        except Exception:
-            pass
-        try:
-            self.sdk.Rayneo_Stop(self.ctx)
-        except Exception:
-            pass
-        try:
-            self.sdk.Rayneo_Destroy(self.ctx)
-        except Exception:
-            pass
+        """Destroy and recreate the SDK connection when IMU stalls.
+        Retries up to 3 times with increasing delay — handles zombie USB HID handles
+        from previous runs that the OS hasn't released yet.
+        """
+        # Step 1: Full teardown of existing connection
+        self._cleanup_sdk()
+        self.ctx = None
 
-        time.sleep(0.5)
-
-        try:
-            self.ctx = c_void_p()
-            if self.sdk.Rayneo_Create(byref(self.ctx)) != 0:
-                print("  Reconnect: Create failed")
+        # Step 2: Retry Create+Start with backoff
+        for attempt in range(1, 4):
+            time.sleep(0.5 * attempt)  # 0.5s, 1.0s, 1.5s
+            try:
+                ctx = c_void_p()
+                if self.sdk.Rayneo_Create(byref(ctx)) != 0:
+                    print(f"  Reconnect attempt {attempt}/3: Create failed")
+                    continue
+                self.sdk.Rayneo_SetTargetVidPid(ctx, config.RAYNEO_VID, config.RAYNEO_PID)
+                if self.sdk.Rayneo_Start(ctx, 0) != 0:
+                    print(f"  Reconnect attempt {attempt}/3: Start failed")
+                    try:
+                        self.sdk.Rayneo_Destroy(ctx)
+                    except Exception:
+                        pass
+                    continue
+                self.sdk.Rayneo_EnableImu(ctx)
+                if hasattr(self.sdk, 'Rayneo_RequestDeviceInfo'):
+                    self.sdk.Rayneo_RequestDeviceInfo(ctx)
+                self.ctx = ctx
+                self.connected = True
+                self._cf_initialized = False
+                self._last_tick = 0
+                print(f"  IMU reconnected successfully (attempt {attempt})")
+                logging.info(f"IMU reconnected successfully (attempt {attempt})")
                 return
-            self.sdk.Rayneo_SetTargetVidPid(self.ctx, config.RAYNEO_VID, config.RAYNEO_PID)
-            if self.sdk.Rayneo_Start(self.ctx, 0) != 0:
-                print("  Reconnect: Start failed")
-                self.sdk.Rayneo_Destroy(self.ctx)
-                self.ctx = c_void_p()
-                return
-            self.sdk.Rayneo_EnableImu(self.ctx)
-            if hasattr(self.sdk, 'Rayneo_RequestDeviceInfo'):
-                self.sdk.Rayneo_RequestDeviceInfo(self.ctx)
-            self.connected = True
-            self._cf_initialized = False  # Re-init orientation on first new sample
-            self._last_tick = 0
-            print("  IMU reconnected successfully")
-            logging.info("IMU reconnected successfully")
-        except Exception as e:
-            print(f"  Reconnect failed: {e}")
-            logging.warning(f"IMU reconnect failed: {e}")
+            except Exception as e:
+                print(f"  Reconnect attempt {attempt}/3 failed: {e}")
+                logging.warning(f"IMU reconnect attempt {attempt}/3 failed: {e}")
+        print("  All reconnect attempts failed — will retry on next stall")
+        logging.warning("All reconnect attempts failed")
 
     def get_orientation(self):
         """Get raw (yaw, pitch, roll) in radians, relative to reference."""
