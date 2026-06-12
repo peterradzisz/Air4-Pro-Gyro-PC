@@ -135,4 +135,4 @@ python main.py [--no-imu] [--no-audio] [--monitor N]
 
 ## License
 
-Personal use. No warranty. Use at your own risk.
+[CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) — Peter Radziszewski
