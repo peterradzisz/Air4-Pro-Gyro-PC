@@ -96,13 +96,13 @@ class SettingsPanel:
     @staticmethod
     def _knob_x(val, idx):
         mins = [0.05, 0.05, 0.01, 0.10, 0.990, 0.00, 0.0]
-        maxes = [1.00, 1.00, 0.20, 1.00, 1.000, 0.30, 5.0]
+        maxes = [1.00, 1.00, 0.20, 1.00, 1.000, 0.49, 5.0]
         return SLIDER_X + (val - mins[idx]) / (maxes[idx] - mins[idx]) * SLIDER_W
 
     @staticmethod
     def _val_from_x(mx, idx):
         mins = [0.05, 0.05, 0.01, 0.10, 0.990, 0.00, 0.0]
-        maxes = [1.00, 1.00, 0.20, 1.00, 1.000, 0.30, 5.0]
+        maxes = [1.00, 1.00, 0.20, 1.00, 1.000, 0.49, 5.0]
         frac = max(0.0, min(1.0, (mx - SLIDER_X) / SLIDER_W))
         steps = [100, 100, 200, 100, 1000, 100, 10]
         raw = mins[idx] + frac * (maxes[idx] - mins[idx])
@@ -120,7 +120,7 @@ class SettingsPanel:
 
     @staticmethod
     def _minmax(idx):
-        return ([0.05, 0.05, 0.01, 0.10, 0.990, 0.00, 0.0][idx], [1.00, 1.00, 0.20, 1.00, 1.000, 0.30, 5.0][idx])
+        return ([0.05, 0.05, 0.01, 0.10, 0.990, 0.00, 0.0][idx], [1.00, 1.00, 0.20, 1.00, 1.000, 0.49, 5.0][idx])
 
     def update_monitors(self, monitors):
         self._monitors = monitors
