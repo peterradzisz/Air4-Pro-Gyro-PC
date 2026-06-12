@@ -6718,3 +6718,162 @@ ImportError: cannot import name 'capture_screen' from 'airpin.window_capture' (C
 07:08:29 [INFO] Hotkeys triggered: {'quit'}
 07:08:29 [INFO] Quit requested
 07:08:29 [INFO] GYRO_DIAG: gx=+0.0134 gy=-0.0983 gz=-0.0165 | peaks: [-2.2449, +3.0226, +1.6109] | yaw=-2881.2 pitch=-32.0 roll=+126.5 | mag=0.1006
+07:18:43 [INFO] ============================================================
+07:18:43 [INFO] AirPin starting...
+07:18:43 [INFO] Args: Namespace(no_imu=False, no_audio=False, monitor=0, sensitivity=None, fps=None)
+07:18:43 [INFO] Displays found: 2, target_monitor=0
+07:18:43 [INFO]   [0] Monitor 0 @ (0,0) 1920x1080
+07:18:43 [INFO]   [1] Monitor 1 @ (-3840,0) 3840x2160
+07:18:44 [INFO] IMU tracker started and recentered
+07:18:44 [CRITICAL] CRASH: release unlocked lock
+Traceback (most recent call last):
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "C:\Users\Pionoi9\AppData\Local\Programs\Python\Python310\lib\site-packages\comtypes\__init__.py", line 54, in <module>
+    from comtypes import patcher  # noqa
+  File "<frozen importlib._bootstrap>", line 224, in _lock_unlock_module
+  File "<frozen importlib._bootstrap>", line 110, in acquire
+RuntimeError: release unlocked lock
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\VR AR\AirPin\main.py", line 591, in <module>
+    main()
+  File "C:\VR AR\AirPin\main.py", line 215, in main
+    if not win_mgr.start():
+  File "C:\VR AR\AirPin\airpin\window_capture.py", line 339, in start
+    if not self.capture.start():
+  File "C:\VR AR\AirPin\airpin\window_capture.py", line 225, in start
+    if self._try_init_dxcam():
+  File "C:\VR AR\AirPin\airpin\window_capture.py", line 195, in _try_init_dxcam
+    import dxcam  # noqa: F401
+  File "C:\Users\Pionoi9\AppData\Local\Programs\Python\Python310\lib\site-packages\dxcam\__init__.py", line 27, in <module>
+    from dxcam.core.backend import normalize_backend_name
+  File "C:\Users\Pionoi9\AppData\Local\Programs\Python\Python310\lib\site-packages\dxcam\core\__init__.py", line 4, in <module>
+    from dxcam.core.device import Device
+  File "C:\Users\Pionoi9\AppData\Local\Programs\Python\Python310\lib\site-packages\dxcam\core\device.py", line 7, in <module>
+    import comtypes
+  File "<frozen importlib._bootstrap>", line 1024, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 174, in __exit__
+  File "<frozen importlib._bootstrap>", line 127, in release
+RuntimeError: release unlocked lock
+07:20:59 [INFO] ============================================================
+07:20:59 [INFO] AirPin starting...
+07:20:59 [INFO] Args: Namespace(no_imu=False, no_audio=False, monitor=0, sensitivity=None, fps=None)
+07:20:59 [INFO] Displays found: 2, target_monitor=0
+07:20:59 [INFO]   [0] Monitor 0 @ (0,0) 1920x1080
+07:20:59 [INFO]   [1] Monitor 1 @ (-3840,0) 3840x2160
+07:20:59 [INFO] IMU tracker started and recentered
+07:21:00 [INFO] GYRO_DIAG: gx=-0.2450 gy=-2.6276 gz=-3.2455 | peaks: [-5.7855, -3.4119, -3.2455] | yaw=-824.0 pitch=-255.4 roll=-246.4 | mag=4.1830
+07:21:04 [INFO] ============================================================
+07:21:04 [INFO] AirPin starting...
+07:21:04 [INFO] Args: Namespace(no_imu=False, no_audio=False, monitor=0, sensitivity=None, fps=None)
+07:21:04 [INFO] Displays found: 2, target_monitor=0
+07:21:04 [INFO]   [0] Monitor 0 @ (0,0) 1920x1080
+07:21:04 [INFO]   [1] Monitor 1 @ (-3840,0) 3840x2160
+07:21:04 [INFO] IMU tracker started and recentered
+07:21:04 [INFO] Dropping released DXCamera instance for device=0 output=0 backend=dxgi.
+07:21:04 [INFO] DXGI capture initialised (dev=0 out=0 1920x1080)
+07:21:04 [INFO] Screen capture started: 1920x1080
+07:21:04 [INFO] Renderer initialized: 1920x1080 at (0,0), hwnd=32838730
+07:21:04 [INFO] Target display: Monitor 0 (1920x1080) at (0,0)
+07:21:05 [INFO] GYRO_DIAG: gx=-0.0751 gy=+0.0419 gz=-0.0122 | peaks: [-0.2315, +0.2068, +0.3348] | yaw=-1.6 pitch=-12.7 roll=+53.7 | mag=0.0869
+07:21:06 [INFO] GYRO_DIAG: gx=+0.0372 gy=+0.0052 gz=-0.1911 | peaks: [-0.5730, +1.4890, +0.8736] | yaw=+198.6 pitch=-88.4 roll=+163.2 | mag=0.1948
+07:21:07 [INFO] GYRO_DIAG: gx=-0.5932 gy=+0.3736 gz=+0.3525 | peaks: [+0.9175, -1.7993, -1.0225] | yaw=-29.5 pitch=-77.9 roll=+74.5 | mag=0.7847
+07:21:08 [INFO] GYRO_DIAG: gx=+0.2871 gy=-0.0864 gz=+0.0795 | peaks: [+1.6982, -1.7993, -1.0225] | yaw=-5.7 pitch=+229.0 roll=+66.3 | mag=0.3102
+07:21:09 [INFO] GYRO_DIAG: gx=-0.8174 gy=+0.1494 gz=+0.0941 | peaks: [+1.6982, -1.7993, -1.0225] | yaw=+45.3 pitch=-83.8 roll=+103.5 | mag=0.8362
+07:21:10 [INFO] GYRO_DIAG: gx=-0.0086 gy=+0.1867 gz=+0.0385 | peaks: [+1.6982, +3.3314, +1.0391] | yaw=+866.4 pitch=-174.2 roll=+187.7 | mag=0.1908
+07:21:11 [INFO] GYRO_DIAG: gx=-0.0263 gy=+0.0266 gz=+0.0514 | peaks: [+1.6982, +3.3314, +1.0391] | yaw=+974.4 pitch=-54.2 roll=+207.5 | mag=0.0635
+07:21:12 [INFO] GYRO_DIAG: gx=+1.0910 gy=-0.1102 gz=-0.1521 | peaks: [+1.6982, -4.3215, +1.0391] | yaw=-48.0 pitch=+245.5 roll=+125.7 | mag=1.1070
+07:21:13 [INFO] GYRO_DIAG: gx=+0.0195 gy=+0.0510 gz=+0.0288 | peaks: [+1.6982, -4.3215, +1.0391] | yaw=-46.5 pitch=+172.3 roll=+97.6 | mag=0.0618
+07:21:14 [INFO] GYRO_DIAG: gx=-0.4209 gy=+0.0382 gz=+0.0324 | peaks: [+1.6982, -4.3215, +1.0391] | yaw=-33.0 pitch=-153.2 roll=+113.5 | mag=0.4239
+07:21:15 [INFO] Loop OK - px_off=187px, zoom=1.0, tracking=True, fps=60, has_frame=True
+07:21:15 [INFO] IMU diag: gy=+0.4915 gx=+0.8784 px_off=197px gain=0.99 decay=1.0000 dead=0.04 mag=1.0073 resp=1.000 yaw_out=197 imu=5414
+07:21:15 [INFO] GYRO_DIAG: gx=+0.2382 gy=-0.0082 gz=+0.0318 | peaks: [+1.6982, -4.3215, +1.0391] | yaw=-25.1 pitch=+24.2 roll=+78.1 | mag=0.2405
+07:21:16 [INFO] GYRO_DIAG: gx=-0.3348 gy=+0.3375 gz=+0.2285 | peaks: [+1.6982, -4.3215, +1.0391] | yaw=-23.8 pitch=-102.2 roll=+101.1 | mag=0.5275
+07:21:17 [INFO] GYRO_DIAG: gx=+0.0440 gy=+0.0107 gz=-0.0238 | peaks: [+1.6982, -4.3215, +1.0391] | yaw=-113.4 pitch=-117.2 roll=+60.5 | mag=0.0511
+07:21:18 [INFO] GYRO_DIAG: gx=-0.0617 gy=+0.0572 gz=+0.0117 | peaks: [+1.6982, -4.3215, +1.0391] | yaw=-75.9 pitch=+55.8 roll=+73.5 | mag=0.0849
+07:21:18 [INFO] Hotkeys triggered: {'recenter'}
+07:21:18 [INFO] Recentered
+07:21:19 [INFO] GYRO_DIAG: gx=-0.0037 gy=+0.0217 gz=+0.0104 | peaks: [+1.6982, -4.3215, +1.0391] | yaw=-67.2 pitch=+35.2 roll=+66.6 | mag=0.0244
+07:21:20 [INFO] GYRO_DIAG: gx=-0.7453 gy=+0.2765 gz=+0.1888 | peaks: [+1.6982, -4.3215, +1.0391] | yaw=-50.1 pitch=-106.1 roll=+77.3 | mag=0.8170
+07:21:21 [INFO] GYRO_DIAG: gx=+0.0360 gy=-0.0730 gz=+0.0153 | peaks: [+2.3866, -4.3215, +1.0391] | yaw=-39.4 pitch=+232.6 roll=+76.3 | mag=0.0828
+07:21:22 [INFO] GYRO_DIAG: gx=+0.8882 gy=-0.1194 gz=-0.1130 | peaks: [+2.3866, -4.3215, +1.0391] | yaw=-26.7 pitch=-120.4 roll=+95.9 | mag=0.9033
+07:21:23 [INFO] GYRO_DIAG: gx=-0.3971 gy=+0.0077 gz=-0.0238 | peaks: [+2.3866, -4.3215, +1.0391] | yaw=-25.0 pitch=-31.8 roll=+82.7 | mag=0.3979
+07:21:24 [INFO] GYRO_DIAG: gx=-0.2053 gy=-0.0595 gz=-0.0158 | peaks: [+2.3866, -4.3215, +1.0391] | yaw=-10.6 pitch=+7.2 roll=+70.0 | mag=0.2143
+07:21:25 [INFO] Loop OK - px_off=32px, zoom=1.0, tracking=True, fps=60, has_frame=True
+07:21:25 [INFO] IMU diag: gy=+0.0327 gx=+0.5681 px_off=32px gain=0.99 decay=1.0000 dead=0.04 mag=0.5691 resp=0.639 yaw_out=32 imu=10348
+07:21:25 [INFO] GYRO_DIAG: gx=-0.5199 gy=+0.0187 gz=+0.0306 | peaks: [+2.3866, -4.3215, +1.0391] | yaw=-26.4 pitch=-38.7 roll=+65.2 | mag=0.5211
+07:21:26 [INFO] GYRO_DIAG: gx=+0.0409 gy=-1.0339 gz=-0.4618 | peaks: [+2.3866, -4.3215, +1.0391] | yaw=-32.8 pitch=-19.5 roll=+58.3 | mag=1.1330
+07:21:27 [INFO] GYRO_DIAG: gx=-0.0287 gy=+0.2691 gz=+0.0813 | peaks: [+2.3866, -4.3215, +1.0391] | yaw=+47.2 pitch=-3.4 roll=+106.1 | mag=0.2826
+07:21:28 [INFO] GYRO_DIAG: gx=+0.2364 gy=-0.0754 gz=-0.0739 | peaks: [+2.3866, -4.3215, +1.0391] | yaw=+224.4 pitch=-91.1 roll=+162.8 | mag=0.2589
+07:21:29 [INFO] GYRO_DIAG: gx=+0.2260 gy=-2.2495 gz=-1.0464 | peaks: [+2.3866, -4.3215, -1.0506] | yaw=+33.6 pitch=+43.5 roll=+28.6 | mag=2.4912
+07:21:30 [INFO] GYRO_DIAG: gx=-0.1063 gy=+2.1445 gz=+0.5749 | peaks: [+2.3866, -4.3215, -1.0506] | yaw=-34.1 pitch=+29.7 roll=+30.9 | mag=2.2227
+07:21:31 [INFO] GYRO_DIAG: gx=+0.4068 gy=-0.7675 gz=-0.1343 | peaks: [+2.3866, -4.3215, -1.0506] | yaw=+48.7 pitch=+57.3 roll=+78.9 | mag=0.8790
+07:21:32 [INFO] GYRO_DIAG: gx=-0.3842 gy=+0.3980 gz=+0.2584 | peaks: [+2.3866, -4.3215, -1.0506] | yaw=-53.8 pitch=-21.9 roll=+57.9 | mag=0.6106
+07:21:33 [INFO] GYRO_DIAG: gx=+0.5064 gy=+0.0401 gz=-0.0189 | peaks: [+2.3866, -4.3215, -1.0506] | yaw=+14.6 pitch=+57.7 roll=+73.1 | mag=0.5083
+07:21:34 [INFO] GYRO_DIAG: gx=+0.1081 gy=-0.0119 gz=+0.0184 | peaks: [+2.3866, -4.3215, -1.0506] | yaw=-0.8 pitch=+15.0 roll=+70.9 | mag=0.1103
+07:21:35 [INFO] Loop OK - px_off=-323px, zoom=1.0, tracking=True, fps=60, has_frame=True
+07:21:35 [INFO] IMU diag: gy=+0.5037 gx=+0.0061 px_off=-313px gain=0.99 decay=1.0000 dead=0.04 mag=0.5304 resp=0.576 yaw_out=-313 imu=15281
+07:21:35 [INFO] GYRO_DIAG: gx=-0.3464 gy=-0.0247 gz=-0.0806 | peaks: [+2.3866, -4.3215, -1.0506] | yaw=+83.1 pitch=-69.3 roll=+106.8 | mag=0.3565
+07:21:36 [INFO] GYRO_DIAG: gx=+0.3421 gy=-0.8805 gz=-0.3158 | peaks: [+2.3866, -4.3215, -1.0506] | yaw=-47.0 pitch=+28.4 roll=+44.8 | mag=0.9960
+07:21:37 [INFO] GYRO_DIAG: gx=-0.5021 gy=+0.0578 gz=-0.0091 | peaks: [+2.3866, -4.3215, -1.0506] | yaw=-92.1 pitch=+45.8 roll=+42.7 | mag=0.5055
+07:21:38 [INFO] GYRO_DIAG: gx=+0.4221 gy=-0.0320 gz=+0.0532 | peaks: [+2.3866, -4.3215, -1.0506] | yaw=-55.4 pitch=+188.0 roll=+61.9 | mag=0.4266
+07:21:39 [INFO] GYRO_DIAG: gx=+1.3225 gy=+0.2771 gz=-0.5772 | peaks: [-2.4276, -4.3215, -1.2559] | yaw=-428.6 pitch=-57.8 roll=-211.1 | mag=1.4693
+07:21:40 [INFO] GYRO_DIAG: gx=-1.4331 gy=+1.2178 gz=+0.4851 | peaks: [-2.4276, -4.3215, -1.2559] | yaw=+544.7 pitch=-73.6 roll=+81.9 | mag=1.9422
+07:21:41 [INFO] GYRO_DIAG: gx=+1.7843 gy=-1.1255 gz=-0.1533 | peaks: [-2.4276, -4.3215, -1.2718] | yaw=+487.9 pitch=+158.6 roll=-33.1 | mag=2.1152
+07:21:42 [INFO] GYRO_DIAG: gx=-0.8589 gy=+1.2007 gz=+1.2933 | peaks: [-2.4276, -4.3215, +1.3165] | yaw=-85.7 pitch=-129.4 roll=+21.6 | mag=1.9626
+07:21:43 [INFO] GYRO_DIAG: gx=-0.7031 gy=+0.1482 gz=+0.1057 | peaks: [-2.4276, -4.3215, +1.3165] | yaw=+111.6 pitch=+97.8 roll=+196.9 | mag=0.7263
+07:21:44 [INFO] GYRO_DIAG: gx=+0.2236 gy=+0.0749 gz=+0.0544 | peaks: [-2.4276, -4.3215, +1.3165] | yaw=+161.1 pitch=-11.1 roll=+118.3 | mag=0.2420
+07:21:45 [INFO] Loop OK - px_off=-366px, zoom=1.0, tracking=True, fps=60, has_frame=True
+07:21:45 [INFO] IMU diag: gy=+0.5355 gx=+0.1600 px_off=-354px gain=0.99 decay=1.0000 dead=0.04 mag=0.6426 resp=0.753 yaw_out=-354 imu=20214
+07:21:45 [INFO] GYRO_DIAG: gx=+0.1802 gy=-0.4157 gz=-0.6462 | peaks: [-2.4276, -4.3215, +1.3165] | yaw=+310.4 pitch=+67.6 roll=+210.1 | mag=0.7892
+07:21:46 [INFO] GYRO_DIAG: gx=+0.8259 gy=-0.1792 gz=+0.0636 | peaks: [-2.4276, -4.3215, -1.6927] | yaw=+230.0 pitch=-100.3 roll=+126.8 | mag=0.8475
+07:21:47 [INFO] GYRO_DIAG: gx=+1.0672 gy=-0.1780 gz=-0.2950 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+193.9 pitch=-70.7 roll=+75.4 | mag=1.1214
+07:21:48 [INFO] GYRO_DIAG: gx=+0.4019 gy=-0.0436 gz=-0.0439 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+147.3 pitch=-40.1 roll=+17.8 | mag=0.4067
+07:21:49 [INFO] GYRO_DIAG: gx=+1.4838 gy=-0.0253 gz=-0.1343 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+104.1 pitch=-86.0 roll=-13.4 | mag=1.4901
+07:21:50 [INFO] GYRO_DIAG: gx=+0.1686 gy=-0.0449 gz=-0.0464 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=-18.5 pitch=+1.1 roll=-79.3 | mag=0.1805
+07:21:51 [INFO] GYRO_DIAG: gx=+0.7831 gy=+0.0578 gz=-0.0513 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+144.1 pitch=+328.9 roll=+72.1 | mag=0.7869
+07:21:52 [INFO] GYRO_DIAG: gx=+0.9132 gy=-0.0113 gz=+0.0159 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+159.8 pitch=+245.6 roll=+71.2 | mag=0.9134
+07:21:53 [INFO] GYRO_DIAG: gx=+0.3586 gy=-0.6857 gz=-0.2260 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+88.6 pitch=+148.3 roll=+51.2 | mag=0.8061
+07:21:54 [INFO] GYRO_DIAG: gx=-0.4844 gy=+0.5049 gz=+0.6378 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+83.3 pitch=-66.0 roll=+137.6 | mag=0.9468
+07:21:55 [INFO] Loop OK - px_off=125px, zoom=1.0, tracking=True, fps=60, has_frame=True
+07:21:55 [INFO] IMU diag: gy=-0.0198 gx=-0.2877 px_off=125px gain=0.99 decay=1.0000 dead=0.04 mag=0.3154 resp=0.231 yaw_out=125 imu=25147
+07:21:55 [INFO] GYRO_DIAG: gx=+0.0409 gy=+0.0260 gz=+0.0178 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+98.6 pitch=-39.6 roll=+106.1 | mag=0.0516
+07:21:56 [INFO] GYRO_DIAG: gx=+1.4422 gy=+0.0462 gz=-0.0305 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+101.8 pitch=+7.7 roll=+72.8 | mag=1.4433
+07:21:57 [INFO] GYRO_DIAG: gx=+0.1283 gy=+0.7102 gz=+0.7459 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=-126.1 pitch=+42.6 roll=+92.5 | mag=1.0379
+07:21:58 [INFO] GYRO_DIAG: gx=+0.1014 gy=+0.6527 gz=+0.2395 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=-218.0 pitch=-21.0 roll=+63.1 | mag=0.7027
+07:21:59 [INFO] GYRO_DIAG: gx=+0.1008 gy=-0.2996 gz=-0.0812 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=-262.8 pitch=-17.5 roll=-28.3 | mag=0.3263
+07:22:00 [INFO] GYRO_DIAG: gx=-0.0257 gy=+0.7975 gz=+0.2670 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=-84.6 pitch=-29.9 roll=+58.8 | mag=0.8414
+07:22:01 [INFO] GYRO_DIAG: gx=-0.0299 gy=-0.3869 gz=-0.3109 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=-49.6 pitch=-11.4 roll=+76.6 | mag=0.4973
+07:22:02 [INFO] GYRO_DIAG: gx=+0.0116 gy=-0.1792 gz=-0.1233 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=-167.4 pitch=+8.7 roll=+10.0 | mag=0.2179
+07:22:03 [INFO] GYRO_DIAG: gx=-0.2383 gy=+1.5843 gz=+0.6024 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=-65.2 pitch=+47.4 roll=+82.9 | mag=1.7116
+07:22:04 [INFO] GYRO_DIAG: gx=-0.0214 gy=+0.4841 gz=+0.1949 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+285.2 pitch=-21.2 roll=+212.9 | mag=0.5224
+07:22:05 [INFO] Loop OK - px_off=1338px, zoom=1.0, tracking=True, fps=60, has_frame=True
+07:22:05 [INFO] IMU diag: gy=+0.2117 gx=+0.0073 px_off=1339px gain=0.99 decay=1.0000 dead=0.04 mag=0.2440 resp=0.137 yaw_out=1339 imu=30080
+07:22:05 [INFO] GYRO_DIAG: gx=-0.0202 gy=+0.6741 gz=+0.1143 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+449.3 pitch=-6.4 roll=+189.4 | mag=0.6840
+07:22:06 [INFO] GYRO_DIAG: gx=-0.1778 gy=-0.4505 gz=-0.2779 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+99.6 pitch=-9.7 roll=-8.1 | mag=0.5583
+07:22:07 [INFO] GYRO_DIAG: gx=+0.2749 gy=+0.8629 gz=+0.7233 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+172.4 pitch=-133.1 roll=+121.2 | mag=1.1590
+07:22:08 [INFO] GYRO_DIAG: gx=+0.0061 gy=-0.5861 gz=-0.2052 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+298.7 pitch=-9.6 roll=+184.1 | mag=0.6210
+07:22:09 [INFO] GYRO_DIAG: gx=+0.2040 gy=-0.3460 gz=-0.1624 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+48.1 pitch=+65.1 roll=+10.5 | mag=0.4333
+07:22:10 [INFO] GYRO_DIAG: gx=+0.0299 gy=-0.1426 gz=-0.0794 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=-53.5 pitch=+76.9 roll=+28.8 | mag=0.1659
+07:22:11 [INFO] GYRO_DIAG: gx=-0.7373 gy=+2.2819 gz=+0.5517 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+165.8 pitch=+30.5 roll=+96.6 | mag=2.4607
+07:22:12 [INFO] GYRO_DIAG: gx=+0.0366 gy=-0.5898 gz=-0.3213 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+398.8 pitch=-20.8 roll=+119.3 | mag=0.6726
+07:22:13 [INFO] GYRO_DIAG: gx=-0.1607 gy=+0.8189 gz=+0.2407 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+433.2 pitch=-24.6 roll=+105.1 | mag=0.8685
+07:22:14 [INFO] GYRO_DIAG: gx=+0.2785 gy=-0.8005 gz=-0.3457 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+334.5 pitch=+12.1 roll=+49.7 | mag=0.9154
+07:22:15 [INFO] Loop OK - px_off=1317px, zoom=1.0, tracking=True, fps=60, has_frame=True
+07:22:15 [INFO] IMU diag: gy=-1.1780 gx=+0.3635 px_off=1270px gain=0.99 decay=1.0000 dead=0.04 mag=1.3473 resp=1.000 yaw_out=1270 imu=35023
+07:22:16 [INFO] GYRO_DIAG: gx=+0.1515 gy=-0.4651 gz=-0.1404 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=-49.5 pitch=+63.3 roll=-46.7 | mag=0.5089
+07:22:17 [INFO] GYRO_DIAG: gx=+0.7129 gy=+0.1445 gz=-0.0323 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+258.5 pitch=-86.3 roll=+101.7 | mag=0.7281
+07:22:18 [INFO] GYRO_DIAG: gx=-0.5394 gy=+0.1915 gz=+0.3373 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+129.1 pitch=-24.1 roll=+55.8 | mag=0.6644
+07:22:19 [INFO] GYRO_DIAG: gx=-0.3458 gy=-0.1279 gz=+0.0538 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+5.2 pitch=+17.5 roll=+21.1 | mag=0.3726
+07:22:20 [INFO] GYRO_DIAG: gx=-0.2431 gy=-1.1835 gz=-0.8332 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=+163.4 pitch=+39.8 roll=+82.1 | mag=1.4676
+07:22:21 [INFO] GYRO_DIAG: gx=+0.4233 gy=-0.3931 gz=-0.0195 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=-79.9 pitch=+15.7 roll=-26.8 | mag=0.5780
+07:22:22 [INFO] GYRO_DIAG: gx=-0.0299 gy=+0.0272 gz=+0.0043 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=-55.3 pitch=+66.2 roll=+37.2 | mag=0.0407
+07:22:23 [INFO] GYRO_DIAG: gx=-0.0043 gy=+0.1231 gz=-0.0494 | peaks: [+2.4978, -4.3215, -1.6927] | yaw=-41.3 pitch=+36.5 roll=+49.4 | mag=0.1327
+07:22:23 [INFO] Hotkeys triggered: {'quit'}
+07:22:23 [INFO] Quit requested
