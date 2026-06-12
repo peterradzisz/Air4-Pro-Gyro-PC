@@ -460,11 +460,13 @@ def main():
                 log.info(f"IMU inactive: tracking_enabled={tracking_enabled}, imu_count={tracker.imu_count if tracker else 'no tracker'}, connected={tracker.connected if tracker else 'N/A'}")
 
         # Edge zoom: progressive zoom based on distance from center
+        # Applied to a separate display_zoom so it doesn't compound into base zoom
+        display_zoom = zoom
         edge_zoom_setting = settings_manager.get('edge_zoom', 0.0)
         if edge_zoom_setting > 0.0 and follow.yaw_max_offset > 0:
             offset_ratio = abs(pixel_offset_x) / follow.yaw_max_offset
             offset_ratio = min(1.0, offset_ratio)
-            zoom = zoom * (1.0 + edge_zoom_setting * offset_ratio)
+            display_zoom = zoom * (1.0 + edge_zoom_setting * offset_ratio)
 
         # ── Build panel list: main + virtual displays ──
         panels_render = []
@@ -493,7 +495,7 @@ def main():
         # ── Render all panels ──
         offsets = [p[0] for p in panels_render]
         slots = [p[1] for p in panels_render]
-        renderer.render_panels(slots, offsets, pixel_offset_x, pixel_offset_y, zoom)
+        renderer.render_panels(slots, offsets, pixel_offset_x, pixel_offset_y, display_zoom)
 
         # -- Cursor --
         # Check if cursor is on the glasses (target) monitor
@@ -508,7 +510,7 @@ def main():
                 renderer._hide_system_cursor()
                 _cursor_hidden_on_glasses = True
             # Draw GL cursor at the position the user expects (shifted by head tracking)
-            renderer.draw_cursor(pixel_offset_x, pixel_offset_y, zoom)
+            renderer.draw_cursor(pixel_offset_x, pixel_offset_y, display_zoom)
         else:
             # Cursor is on PC monitor: restore system cursor
             if _cursor_hidden_on_glasses:
