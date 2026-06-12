@@ -43,6 +43,11 @@ class SpatialRenderer:
         self.height = target_h or user32.GetSystemMetrics(1)
         self.primary_width = target_w or user32.GetSystemMetrics(0)
 
+        # Toast notification state
+        self._toast_text = ""
+        self._toast_start = 0.0
+        self._toast_duration = 2.0  # seconds
+
     def reinit_size(self):
         """Recreate overlay to cover the current virtual desktop."""
         new_x = user32.GetSystemMetrics(76)
@@ -437,6 +442,74 @@ class SpatialRenderer:
         glTexCoord2f(1, 1); glVertex2f(margin + hud_w, margin)
         glTexCoord2f(1, 0); glVertex2f(margin + hud_w, margin + hud_h)
         glTexCoord2f(0, 0); glVertex2f(margin, margin + hud_h)
+        glEnd()
+
+    def show_toast(self, text):
+        """Show a brief notification that fades out over 2 seconds."""
+        import time as _time
+        self._toast_text = text
+        self._toast_start = _time.monotonic()
+
+    def draw_toast(self):
+        """Render the toast notification with fade-out. Mirrors draw_hud's
+        pygame-surface -> GL-texture -> quad approach."""
+        import time as _time
+        if not self._toast_text:
+            return
+        elapsed = _time.monotonic() - self._toast_start
+        if elapsed > self._toast_duration:
+            self._toast_text = ""
+            return
+        # Fade out in last 0.5 seconds
+        alpha = 255
+        if elapsed > self._toast_duration - 0.5:
+            alpha = int(255 * (self._toast_duration - elapsed) / 0.5)
+        alpha = max(0, min(255, alpha))
+
+        font = self._hud_font_big if hasattr(self, '_hud_font_big') and self._hud_font_big else self._hud_font
+        text_surf = font.render(self._toast_text, True, (255, 255, 255))
+        tw, th = text_surf.get_size()
+
+        # Center-bottom of screen
+        tx = (self.width - tw) // 2
+        ty = self.height - 80
+
+        # Dark background pill
+        pad_x, pad_y = 16, 8
+        bg = pygame.Surface((tw + pad_x * 2, th + pad_y * 2), pygame.SRCALPHA)
+        bg_w = tw + pad_x * 2
+        bg_h = th + pad_y * 2
+        pygame.draw.rect(bg, (15, 15, 25, min(200, alpha)), (0, 0, bg_w, bg_h), border_radius=10)
+        pygame.draw.rect(bg, (60, 130, 220, min(100, alpha)), (0, 0, bg_w, bg_h), width=2, border_radius=10)
+
+        # Apply alpha to text
+        text_surf.set_alpha(alpha)
+        bg.blit(text_surf, (pad_x, pad_y))
+        bg.set_alpha(alpha)
+
+        # Lazy-init toast texture
+        if not hasattr(self, '_toast_tex') or self._toast_tex is None:
+            self._toast_tex = glGenTextures(1)
+
+        # Upload to GL (same pattern as draw_hud)
+        data = pygame.image.tostring(bg, "RGBA", True)
+        glBindTexture(GL_TEXTURE_2D, self._toast_tex)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bg_w, bg_h, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, data)
+        glEnable(GL_TEXTURE_2D)
+        glEnable(GL_BLEND)
+        glColor4f(1, 1, 1, 1)
+
+        # Draw quad in screen coords (same as draw_hud: virt_x-offset, top-left origin via flipped projection)
+        gx = self.virt_x + tx - pad_x
+        gy = self.virt_y + ty - pad_y
+        glBegin(GL_QUADS)
+        glTexCoord2f(0, 1); glVertex2f(gx, gy)
+        glTexCoord2f(1, 1); glVertex2f(gx + bg_w, gy)
+        glTexCoord2f(1, 0); glVertex2f(gx + bg_w, gy + bg_h)
+        glTexCoord2f(0, 0); glVertex2f(gx, gy + bg_h)
         glEnd()
 
     def release_focus_once(self):

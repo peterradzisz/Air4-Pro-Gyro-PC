@@ -342,37 +342,45 @@ def main():
             follow.recenter()
             print("  Recentered!")
             log.info("Recentered")
+            renderer.show_toast("Recentered")
         if 'toggle_tracking' in triggered:
             tracking_enabled = not tracking_enabled
             if tracking_enabled and tracker:
                 tracker.recenter()
             print(f"  Tracking: {'ON' if tracking_enabled else 'OFF'}")
             log.info(f"Tracking: {'ON' if tracking_enabled else 'OFF'}")
+            renderer.show_toast(f"Tracking: {'ON' if tracking_enabled else 'OFF'}")
         if 'toggle_hud' in triggered:
             show_hud = not show_hud
             log.info(f"HUD: {'ON' if show_hud else 'OFF'}")
+            renderer.show_toast(f"HUD: {'ON' if show_hud else 'OFF'}")
         if 'invert_yaw' in triggered:
             config.INVERT_YAW = not config.INVERT_YAW
             settings_manager.set('invert_yaw', config.INVERT_YAW)
             print(f"  Yaw invert: {config.INVERT_YAW}")
             log.info(f"Yaw invert: {config.INVERT_YAW}")
+            renderer.show_toast(f"Yaw Invert: {'ON' if config.INVERT_YAW else 'OFF'}")
         if 'focus_game' in triggered:
             renderer.release_focus_once()
             log.info("Focus released to game")
         if 'zoom_in' in triggered:
             zoom = min(zoom + config.ZOOM_STEP, config.ZOOM_MAX)
             log.info(f"Zoom: {zoom}")
+            renderer.show_toast(f"Zoom: {zoom:.0%}")
         if 'zoom_out' in triggered:
             zoom = max(zoom - config.ZOOM_STEP, config.ZOOM_MIN)
             log.info(f"Zoom: {zoom}")
+            renderer.show_toast(f"Zoom: {zoom:.0%}")
         if 'zoom_reset' in triggered:
             zoom = config.ZOOM_DEFAULT
             log.info(f"Zoom reset: {zoom}")
+            renderer.show_toast(f"Zoom: {zoom:.0%}")
         if 'toggle_pitch' in triggered:
             config.PITCH_ENABLED = not config.PITCH_ENABLED
             settings_manager.set('pitch_enabled', config.PITCH_ENABLED)
             print(f"  Pitch: {'ON' if config.PITCH_ENABLED else 'OFF'}")
             log.info(f"Pitch: {'ON' if config.PITCH_ENABLED else 'OFF'}")
+            renderer.show_toast(f"Pitch: {'ON' if config.PITCH_ENABLED else 'OFF'}")
         if 'toggle_settings' in triggered:
             settings_panel.toggle()
             # Toggle mouse click-through: when panel is visible, remove WS_EX_TRANSPARENT so clicks reach us
@@ -531,6 +539,7 @@ def main():
                 'cap_h': win_mgr.capture.height,
                 'panels': [f"Main"] + [f"VDD-{d[2]}" for d in (vdd.get_displays() if vdd else [])],
             })
+        renderer.draw_toast()
 
         # -- Settings panel mouse handling --
         if settings_panel.visible:
