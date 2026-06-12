@@ -12877,3 +12877,314 @@ NoneType: None
 13:36:11 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=114, has_frame=True
 13:36:15 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=115, has_frame=True
 13:36:15 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:36:16 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:36:20 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=118, has_frame=True
+13:36:20 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:36:21 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=119, has_frame=True
+13:36:25 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:36:25 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:36:27 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=120, has_frame=True
+13:36:30 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:36:30 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:36:32 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=119, has_frame=True
+13:36:35 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:36:35 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:36:37 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=115, has_frame=True
+13:36:41 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:36:41 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:36:42 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:36:46 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:36:46 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:36:47 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:36:51 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:36:51 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:36:52 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=114, has_frame=True
+13:36:54 [INFO] Output recovery attempt 100 failed (Output is not attached to desktop.); retrying in 5.000s.
+13:36:54 [INFO] Recovery keeps retrying while transient display transitions are active (exclusive/fullscreen switch, mode switch, session disconnect/reconnect).
+13:36:54 [INFO] Output recovery attempt 100 failed (Output is not attached to desktop.); retrying in 5.000s.
+13:36:54 [INFO] Recovery keeps retrying while transient display transitions are active (exclusive/fullscreen switch, mode switch, session disconnect/reconnect).
+13:36:56 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:36:56 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:36:57 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:37:01 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=119, has_frame=True
+13:37:01 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:37:02 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:37:07 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:37:07 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:37:07 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=115, has_frame=True
+13:37:12 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=112, has_frame=True
+13:37:12 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:37:13 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:37:17 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:37:17 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:37:18 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=115, has_frame=True
+13:37:22 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:37:22 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:37:23 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:37:27 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:37:27 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:37:28 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=119, has_frame=True
+13:37:33 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=120, has_frame=True
+13:37:33 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:37:33 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:37:38 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=112, has_frame=True
+13:37:38 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:37:38 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:37:43 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:37:43 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:37:43 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=122, has_frame=True
+13:37:48 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=118, has_frame=True
+13:37:48 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:37:48 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=122, has_frame=True
+13:37:53 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:37:53 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:37:54 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:37:58 [INFO] Loop OK - px_off=-47px, zoom=0.9, tracking=True, fps=120, has_frame=True
+13:37:58 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=-47px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=-47 imu=673573
+13:37:59 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:38:00 [INFO] Hotkeys triggered: {'recenter'}
+13:38:00 [INFO] Hotkeys triggered: {'recenter'}
+13:38:00 [INFO] Recentered
+13:38:04 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=119, has_frame=True
+13:38:04 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:38:04 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=120, has_frame=True
+13:38:09 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:38:09 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:38:09 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:38:14 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:38:14 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:38:14 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=111, has_frame=True
+13:38:19 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:38:19 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:38:19 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:38:24 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:38:24 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:38:24 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:38:30 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=111, has_frame=True
+13:38:30 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=118, has_frame=True
+13:38:30 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:38:34 [INFO] Output recovery attempt 120 failed (Output is not attached to desktop.); retrying in 5.000s.
+13:38:34 [INFO] Recovery keeps retrying while transient display transitions are active (exclusive/fullscreen switch, mode switch, session disconnect/reconnect).
+13:38:34 [INFO] Output recovery attempt 120 failed (Output is not attached to desktop.); retrying in 5.000s.
+13:38:34 [INFO] Recovery keeps retrying while transient display transitions are active (exclusive/fullscreen switch, mode switch, session disconnect/reconnect).
+13:38:35 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=119, has_frame=True
+13:38:35 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=110, has_frame=True
+13:38:35 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:38:40 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:38:40 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:38:40 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:38:45 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=119, has_frame=True
+13:38:45 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:38:45 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:38:50 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=119, has_frame=True
+13:38:50 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:38:50 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:38:55 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=112, has_frame=True
+13:38:55 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:38:55 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:39:00 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=115, has_frame=True
+13:39:01 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:39:01 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:39:05 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:39:06 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:39:06 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:39:10 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:39:11 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:39:11 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:39:16 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:39:16 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:39:16 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:39:21 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:39:21 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:39:21 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:39:26 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:39:27 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:39:27 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:39:31 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:39:32 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:39:32 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:39:36 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=119, has_frame=True
+13:39:37 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:39:37 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:39:41 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:39:42 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=119, has_frame=True
+13:39:42 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:39:46 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:39:47 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:39:47 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:39:51 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=115, has_frame=True
+13:39:52 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:39:52 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:39:56 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:39:58 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:39:58 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:40:02 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=123, has_frame=True
+13:40:03 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:40:03 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:40:07 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=119, has_frame=True
+13:40:08 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:40:08 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:40:12 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:40:13 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:40:13 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:40:14 [INFO] Output recovery attempt 140 failed (Output is not attached to desktop.); retrying in 5.000s.
+13:40:14 [INFO] Recovery keeps retrying while transient display transitions are active (exclusive/fullscreen switch, mode switch, session disconnect/reconnect).
+13:40:14 [INFO] Output recovery attempt 140 failed (Output is not attached to desktop.); retrying in 5.000s.
+13:40:14 [INFO] Recovery keeps retrying while transient display transitions are active (exclusive/fullscreen switch, mode switch, session disconnect/reconnect).
+13:40:17 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:40:18 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:40:18 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:40:22 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=119, has_frame=True
+13:40:23 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:40:23 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:40:27 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=115, has_frame=True
+13:40:29 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:40:29 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:40:32 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=119, has_frame=True
+13:40:34 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=112, has_frame=True
+13:40:34 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:40:38 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:40:39 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:40:39 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:40:43 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=120, has_frame=True
+13:40:44 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:40:44 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:40:48 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:40:49 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:40:49 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:40:53 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=115, has_frame=True
+13:40:55 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:40:55 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:40:58 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=120, has_frame=True
+13:41:00 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:41:00 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:41:03 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=120, has_frame=True
+13:41:05 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:41:05 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:41:08 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:41:10 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:41:10 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:41:14 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=120, has_frame=True
+13:41:15 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:41:15 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:41:19 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=119, has_frame=True
+13:41:21 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:41:21 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:41:24 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=115, has_frame=True
+13:41:26 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:41:26 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:41:29 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=111, has_frame=True
+13:41:31 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=112, has_frame=True
+13:41:31 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:41:34 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=125, has_frame=True
+13:41:36 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=118, has_frame=True
+13:41:36 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:41:39 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=119, has_frame=True
+13:41:41 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=119, has_frame=True
+13:41:41 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:41:44 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=115, has_frame=True
+13:41:46 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:41:46 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:41:49 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=115, has_frame=True
+13:41:51 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=118, has_frame=True
+13:41:51 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:41:54 [INFO] Output recovery attempt 160 failed (Output is not attached to desktop.); retrying in 5.000s.
+13:41:54 [INFO] Recovery keeps retrying while transient display transitions are active (exclusive/fullscreen switch, mode switch, session disconnect/reconnect).
+13:41:54 [INFO] Output recovery attempt 160 failed (Output is not attached to desktop.); retrying in 5.000s.
+13:41:54 [INFO] Recovery keeps retrying while transient display transitions are active (exclusive/fullscreen switch, mode switch, session disconnect/reconnect).
+13:41:55 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:41:57 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:41:57 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:42:00 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:42:02 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:42:02 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:42:05 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:42:07 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=120, has_frame=True
+13:42:07 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:42:10 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=112, has_frame=True
+13:42:12 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=120, has_frame=True
+13:42:12 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:42:15 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=119, has_frame=True
+13:42:17 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=118, has_frame=True
+13:42:17 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:42:20 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:42:23 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=112, has_frame=True
+13:42:23 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:42:25 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=114, has_frame=True
+13:42:28 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:42:28 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:42:30 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:42:33 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:42:33 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:42:36 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:42:38 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=119, has_frame=True
+13:42:38 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:42:41 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:42:43 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:42:43 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:42:46 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=119, has_frame=True
+13:42:48 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:42:48 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:42:51 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:42:54 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=119, has_frame=True
+13:42:54 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:42:56 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=120, has_frame=True
+13:42:59 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=118, has_frame=True
+13:42:59 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:43:01 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=112, has_frame=True
+13:43:04 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:43:04 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:43:06 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:43:09 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=112, has_frame=True
+13:43:09 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:43:12 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=116, has_frame=True
+13:43:14 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:43:14 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:43:17 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=115, has_frame=True
+13:43:20 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:43:20 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:43:22 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:43:25 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:43:25 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:43:27 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=120, has_frame=True
+13:43:30 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=118, has_frame=True
+13:43:30 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:43:32 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:43:34 [INFO] Output recovery attempt 180 failed (Output is not attached to desktop.); retrying in 5.000s.
+13:43:34 [INFO] Recovery keeps retrying while transient display transitions are active (exclusive/fullscreen switch, mode switch, session disconnect/reconnect).
+13:43:34 [INFO] Output recovery attempt 180 failed (Output is not attached to desktop.); retrying in 5.000s.
+13:43:34 [INFO] Recovery keeps retrying while transient display transitions are active (exclusive/fullscreen switch, mode switch, session disconnect/reconnect).
+13:43:35 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=116, has_frame=True
+13:43:35 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:43:37 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:43:40 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=115, has_frame=True
+13:43:40 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:43:42 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=120, has_frame=True
+13:43:45 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=118, has_frame=True
+13:43:45 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:43:47 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=118, has_frame=True
+13:43:51 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:43:51 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:43:53 [INFO] Loop OK - px_off=0px, zoom=1.0, tracking=True, fps=115, has_frame=True
+13:43:56 [INFO] Loop OK - px_off=0px, zoom=0.9, tracking=True, fps=114, has_frame=True
+13:43:56 [INFO] IMU diag: gy=-0.0001 gx=-0.6753 px_off=0px gain=0.87 decay=1.0000 dead=0.04 mag=0.6849 resp=1.000 yaw_out=0 imu=673573
+13:43:56 [INFO] Hotkeys triggered: {'quit'}
+13:43:56 [INFO] Quit requested
+13:43:56 [INFO] Hotkeys triggered: {'quit'}
+13:43:56 [INFO] Quit requested
+14:37:37 [INFO] ============================================================
+14:37:37 [INFO] AirPin starting...
+14:37:37 [INFO] Args: Namespace(no_imu=False, no_audio=False, monitor=0, sensitivity=None, fps=None)
+14:37:37 [INFO] Displays found: 2, target_monitor=0
+14:37:37 [INFO]   [0] Monitor 0 @ (3840,0) 1920x1080
+14:37:37 [INFO]   [1] Monitor 1 @ (0,0) 3840x2160
+14:37:37 [INFO] Dropping released DXCamera instance for device=1 output=0 backend=dxgi.
+14:37:37 [INFO] DXGI capture initialised (dev=1 out=0 1920x1080)
+14:37:37 [INFO] Screen capture started: 1920x1080
+14:37:37 [INFO] Not running as admin — USB reset disabled
+14:37:37 [INFO] IMU tracker started and recentered
+14:37:38 [INFO] Renderer initialized: 1920x1080 at (3840,0), hwnd=20840556
+14:37:38 [INFO] Target display: Monitor 0 (1920x1080) at (3840,0)
+14:37:38 [INFO] GYRO_DIAG: gx=-0.0784 gy=-0.2133 gz=-0.3715 | peaks: [-0.8670, -0.8413, -0.7404] | yaw=-52.2 pitch=-41.0 roll=+57.3 | mag=0.4355
+14:37:39 [INFO] GYRO_DIAG: gx=+1.0230 gy=-0.5334 gz=-0.3202 | peaks: [+1.0236, -0.8413, +0.8020] | yaw=+46.9 pitch=-88.7 roll=+165.1 | mag=1.1973
+14:37:40 [INFO] GYRO_DIAG: gx=+0.0157 gy=+0.0011 gz=+0.0127 | peaks: [+1.0236, -0.8413, +0.8020] | yaw=+12.3 pitch=-6.1 roll=+113.4 | mag=0.0203
