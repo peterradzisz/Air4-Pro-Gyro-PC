@@ -432,10 +432,10 @@ def main():
             follow.yaw_max_offset = settings_manager.get('yaw_range', 0.15) * target_disp['w']
             follow.pitch_max_offset = settings_manager.get('pitch_range', 0.10) * target_disp['h']
             follow.speed_dead = settings_manager.get('deadzone', 0.08)
-            follow.speed_full = 0.40 + settings_manager.get('responsiveness', 0.40) * 0.60
+            follow.speed_full = 0.60  # hardcoded, responsiveness slider removed
             follow.gain = settings_manager.get('gain', 0.40)
             follow.decay = settings_manager.get('decay', 1.0)
-            follow.output_deadzone = settings_manager.get('output_deadzone', 0.3)
+            follow.still_lock_time = settings_manager.get('still_lock_time', 0.5)
             # Yaw: raw gyro[1] = yaw angular velocity (rad/s)
             # Use per-axis speed for gate: yaw gate uses |gy| only
             yaw_sign = -1.0 if config.INVERT_YAW else 1.0
