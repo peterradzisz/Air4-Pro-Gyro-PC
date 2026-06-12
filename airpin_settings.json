@@ -1,5 +1,5 @@
 {
-  "sensitivity": 0.07,
+  "sensitivity": 0.5,
   "invert_yaw": false,
   "invert_pitch": false,
   "pitch_enabled": true,
@@ -10,12 +10,12 @@
   "zoom": 1.0,
   "target_monitor": 0,
   "hide_cursor": true,
-  "deadzone": 0.035,
-  "responsiveness": 0.89,
   "pitch_range": 1.0,
   "yaw_range": 1.0,
-  "gain": 0.99,
+  "gain": 0.87,
+  "edge_zoom": 0.0,
+  "snap_speed": 2.5,
+  "deadzone": 0.035,
   "decay": 1.0,
-  "still_lock_time": 0.5,
-  "edge_zoom": 0.3
+  "usb_reset": false
 }

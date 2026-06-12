@@ -46,6 +46,14 @@ def _find_powershell():
 
 _POWERSHELL = _find_powershell()
 
+
+def _is_admin():
+    """Check if running with administrator privileges."""
+    try:
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:
+        return False
+
 # ── SDK C types ──────────────────────────────────────────────────────────────
 
 class RAYNEO_ImuSample(Structure):
@@ -156,6 +164,9 @@ class ImuTracker:
         self._last_raw_gyro = np.zeros(3)
 
         self.usb_reset_enabled = True  # programmatically cycle USB before reconnect
+        self._is_admin = _is_admin()
+        if not self._is_admin:
+            logging.info("Not running as admin — USB reset disabled")
         self._reconnect_cooldown = 0.0   # monotonic timestamp: no reconnect before this
         self._reconnect_fail_count = 0   # consecutive failed reconnect cycles
         self._reconnect_max_fails = 3    # after this many, stop trying until manual replug
@@ -427,8 +438,8 @@ class ImuTracker:
         self._cleanup_sdk()
         self.ctx = None
 
-        # Step 2: Programmatically cycle USB device (if enabled)
-        if self.usb_reset_enabled:
+        # Step 2: Programmatically cycle USB device (if enabled + admin)
+        if self.usb_reset_enabled and self._is_admin:
             if self._usb_reset():
                 # USB device was cycled — wait for Windows to re-enumerate
                 time.sleep(2.0)
