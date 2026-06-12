@@ -435,6 +435,7 @@ def main():
             follow.speed_full = 0.40 + settings_manager.get('responsiveness', 0.40) * 0.60
             follow.gain = settings_manager.get('gain', 0.40)
             follow.decay = settings_manager.get('decay', 1.0)
+            follow.output_deadzone = settings_manager.get('output_deadzone', 0.3)
             # Yaw: raw gyro[1] = yaw angular velocity (rad/s)
             # Use per-axis speed for gate: yaw gate uses |gy| only
             yaw_sign = -1.0 if config.INVERT_YAW else 1.0

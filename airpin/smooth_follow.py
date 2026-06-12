@@ -4,7 +4,7 @@ Spatial Tracking Filter for AR head tracking.
 Tracks DELTA yaw (rate of change), not absolute position.
 This prevents yaw drift from pushing the image off-screen.
 
-Pipeline: delta_yaw -> speed-gated integrator -> soft clamp -> output
+Pipeline: delta_yaw -> speed-gated integrator -> output deadzone -> hard clamp -> output
 """
 
 import math
@@ -28,6 +28,7 @@ class SpatialTrackingFilter:
         self.speed_full = speed_full
         self.gain = gain
         self.decay = 1.0
+        self.output_deadzone = 0.0  # px — reject tiny pixel changes when near-still
 
         self.output = 0.0
         self.pitch_output = 0.0
@@ -69,6 +70,11 @@ class SpatialTrackingFilter:
         delta_rad = yaw_angular_vel * dt
         delta_px = delta_rad * self.ppr * self.gain * resp
 
+        # Output deadzone: reject tiny changes when head is near-still
+        if self.output_deadzone > 0.0 and abs(delta_px) < self.output_deadzone:
+            # Only swallow if head is also near-still (speed < 2x input deadzone)
+            if gyro_speed < self.speed_dead * 2.0:
+                delta_px = 0.0
         self.output += delta_px
 
         # Decay (only when < 1.0)
@@ -90,6 +96,9 @@ class SpatialTrackingFilter:
         delta_rad = pitch_angular_vel * dt
         delta_px = delta_rad * self.ppr * self.gain * resp
 
+        if self.output_deadzone > 0.0 and abs(delta_px) < self.output_deadzone:
+            if gyro_speed < self.speed_dead * 2.0:
+                delta_px = 0.0
         self.pitch_output += delta_px
 
         if self.decay < 1.0:
