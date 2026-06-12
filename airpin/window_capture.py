@@ -11,6 +11,13 @@ import threading
 import time
 import numpy as np
 
+# Import dxcam at module level to avoid threading import lock issues.
+# comtypes (used by dxcam) crashes with 'release unlocked lock' if imported lazily.
+try:
+    import dxcam
+except ImportError:
+    dxcam = None
+
 log = logging.getLogger(__name__)
 
 user32 = ctypes.windll.user32
@@ -124,9 +131,7 @@ def _find_dxcam_output(target_w, target_h):
     Probe dxcam by creating cameras and checking grabbed frame resolution.
     Returns (device_idx, output_idx) or None.
     """
-    try:
-        import dxcam
-    except ImportError:
+    if dxcam is None:
         return None
     for dev in range(4):
         for out in range(4):
@@ -191,9 +196,7 @@ class ScreenCapture:
             # We already tried once this session and it failed; don't spam.
             return False
         self._dxgi_tried = True
-        try:
-            import dxcam  # noqa: F401
-        except ImportError:
+        if dxcam is None:
             log.info("dxcam not installed; using BitBlt only")
             return False
         match = _find_dxcam_output(self.width, self.height)
@@ -202,8 +205,7 @@ class ScreenCapture:
             return False
         dev_idx, out_idx = match
         try:
-            import dxcam as _dx
-            self._dxcam = _dx.create(
+            self._dxcam = dxcam.create(
                 device_idx=dev_idx,
                 output_idx=out_idx,
                 output_color="BGRA",
