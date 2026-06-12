@@ -8,3 +8,12 @@ test_output.txt
 # Runtime/local
 .omo/
 nul
+
+# Runtime files
+airpin.log
+airpin_settings.json
+*.lnk
+
+# DLLs (user must download separately)
+RayNeoSDK.dll
+libusb-1.0.dll
