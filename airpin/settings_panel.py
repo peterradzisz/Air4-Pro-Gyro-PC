@@ -169,7 +169,7 @@ class SettingsPanel:
             return True
 
         # Tab buttons: Tracking (x=20, w=175) and Display (x=205, w=175) at y=40
-        if 40 <= my <= 62:
+        if 40 <= my <= 66:
             if 20 <= mx <= 195 and clicked:
                 self._display_tab = False
                 return True
@@ -245,16 +245,28 @@ class SettingsPanel:
         x_txt = self._font.render("X", True, (180, 180, 190))
         s.blit(x_txt, (x_btn_x + (x_btn_size - x_txt.get_width()) // 2,
                         x_btn_y + (x_btn_size - x_txt.get_height()) // 2))
-        # Tab buttons: Tracking | Display
+        # Tab buttons: Tracking | Display (always visible, clear contrast)
         tab_y = 40
-        track_color = (40, 80, 120, 220) if not self._display_tab else (30, 35, 50, 180)
-        display_color = (40, 80, 120, 220) if self._display_tab else (30, 35, 50, 180)
-        pygame.draw.rect(s, track_color, (20, tab_y, 175, 22), border_radius=6)
-        pygame.draw.rect(s, display_color, (205, tab_y, 175, 22), border_radius=6)
-        tt = self._font_sm.render("Tracking", True, (200, 220, 255) if not self._display_tab else (120, 130, 150))
-        dt = self._font_sm.render("Display", True, (200, 220, 255) if self._display_tab else (120, 130, 150))
-        s.blit(tt, (20 + (175 - tt.get_width()) // 2, tab_y + 2))
-        s.blit(dt, (205 + (175 - dt.get_width()) // 2, tab_y + 2))
+        # Active tab: bright blue. Inactive: medium gray with border
+        if not self._display_tab:
+            track_color = (50, 120, 200, 240)
+            track_text = (255, 255, 255)
+            display_color = (60, 60, 80, 200)
+            display_text = (180, 190, 210)
+        else:
+            track_color = (60, 60, 80, 200)
+            track_text = (180, 190, 210)
+            display_color = (50, 120, 200, 240)
+            display_text = (255, 255, 255)
+        pygame.draw.rect(s, track_color, (20, tab_y, 175, 26), border_radius=6)
+        pygame.draw.rect(s, display_color, (205, tab_y, 175, 26), border_radius=6)
+        # Border on inactive tab so it is visible
+        pygame.draw.rect(s, (100, 110, 140, 180), (20, tab_y, 175, 26), width=1, border_radius=6)
+        pygame.draw.rect(s, (100, 110, 140, 180), (205, tab_y, 175, 26), width=1, border_radius=6)
+        tt = self._font_sm.render("Tracking", True, track_text)
+        dt = self._font_sm.render("Display", True, display_text)
+        s.blit(tt, (20 + (175 - tt.get_width()) // 2, tab_y + 4))
+        s.blit(dt, (205 + (175 - dt.get_width()) // 2, tab_y + 4))
 
         if self._display_tab:
             # Display Quality tab
