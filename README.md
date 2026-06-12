@@ -127,9 +127,14 @@ python main.py [--no-imu] [--no-audio] [--monitor N]
 - **Yaw has no magnetometer** -- no absolute reference. Recenter with `Ctrl+Alt+R` if drift accumulates
 - **Pitch causes cursor mismatch** -- image shifts vertically but mouse clicks go to real screen coordinates
 
+## Author
+
+**Peter Radziszewski** -- AirPin Extended (this fork)
+
 ## Credits
 
 - **nomi-san** -- original [AirPin](https://github.com/nomi-san/airpin) project
+- **[arigandores (Vsevolod Lazuka)](https://github.com/arigandores)** -- AirPin fork with extended display support
 - **[verncat](https://github.com/verncat/RayNeo-Air-3S-Pro-OpenVR)** -- RayNeoSDK and reference IMU implementation
 - **[Parsec VDD](https://github.com/nomi-san/parsec-vdd)** -- Virtual display driver
 
