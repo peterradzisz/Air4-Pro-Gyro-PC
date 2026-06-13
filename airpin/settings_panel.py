@@ -4,6 +4,7 @@ import math
 import pygame
 from airpin import settings_manager
 from airpin.display_settings import DisplayQualityTab
+from airpin.sound_settings import SoundPanel
 
 PANEL_W = 400
 PANEL_H = 810
@@ -63,6 +64,7 @@ class SettingsPanel:
         self._snap_speed = settings_manager.get("snap_speed", 2.5)
         self._usb_reset = settings_manager.get("usb_reset", True)
         self._display = DisplayQualityTab()
+        self._sound = SoundPanel()
 
     @property
     def visible(self): return self._visible
@@ -84,6 +86,8 @@ class SettingsPanel:
     def usb_reset(self): return self._usb_reset
     @property
     def display(self): return self._display
+    @property
+    def sound(self): return self._sound
 
     def show(self): self._visible = True
     def hide(self): self._visible = False
@@ -211,7 +215,12 @@ class SettingsPanel:
         if not self._visible: return False
         return self._display.handle_mouse(mx, my, clicked)
 
-    def handle_mouse_up(self): self._dragging = None; self._display.handle_mouse_up()
+    def handle_sound_mouse(self, mx, my, clicked):
+        """Route mouse events to Sound panel (panel 3)."""
+        if not self._visible: return False
+        return self._sound.handle_mouse(mx, my, clicked)
+
+    def handle_mouse_up(self): self._dragging = None; self._display.handle_mouse_up(); self._sound.handle_mouse_up()
 
     def _apply_preset(self, name):
         """Apply a named preset to all slider values and persist."""
@@ -316,4 +325,14 @@ class SettingsPanel:
         # We use a subsurface trick: blit display controls at y offset
         self._display.render(s2)
 
-        return (s, PANEL_X, PANEL_Y, PANEL_W, p1_h), (s2, PANEL_X + PANEL_W + 10, PANEL_Y, p2_w, p2_h)
+        # Panel 3: Sound Output
+        p3_w = PANEL_W
+        p3_h = self._sound.panel_height()
+        s3 = pygame.Surface((p3_w, p3_h), pygame.SRCALPHA)
+        pygame.draw.rect(s3, (15, 15, 25, 210), (0, 0, p3_w, p3_h), border_radius=10)
+        pygame.draw.rect(s3, (60, 130, 220, 120), (0, 0, p3_w, p3_h), width=2, border_radius=10)
+        s3.blit(self._font.render("Sound Output", True, (100, 180, 255)), (20, 10))
+        s3.blit(self._font_sm.render(f"Source: {self._sound.router.capture_device_name[:30]}", True, (140, 150, 170)), (20, 32))
+        self._sound.render(s3)
+        p3_x = PANEL_X + 2 * (PANEL_W + 10)
+        return (s, PANEL_X, PANEL_Y, PANEL_W, p1_h), (s2, PANEL_X + PANEL_W + 10, PANEL_Y, p2_w, p2_h), (s3, p3_x, PANEL_Y, p3_w, p3_h)

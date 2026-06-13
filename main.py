@@ -41,7 +41,7 @@ from airpin.window_capture import WindowManager
 from airpin.spatial_renderer import SpatialRenderer
 from airpin.smooth_follow import SpatialTrackingFilter
 from airpin.hotkey_manager import HotkeyManager
-from airpin.audio_router import AudioRouter
+from airpin.multi_audio import MultiAudioRouter
 from airpin.virtual_display import VirtualDisplayManager
 from airpin import settings_manager
 from airpin.settings_panel import SettingsPanel, PANEL_X, PANEL_Y, PANEL_W
@@ -257,7 +257,7 @@ def main():
     side_thread.start()
 
     # ── Audio ────────────────────────────────────────────────────────────
-    audio = AudioRouter()
+    audio = MultiAudioRouter()
     if not args.no_audio and config.AUDIO_ENABLED:
         print("Starting audio routing...")
         if not audio.start():
@@ -572,16 +572,22 @@ def main():
             mouse_down_now = mouse_buttons[0]
             clicked = mouse_down_now and not _prev_mouse_down  # edge detection: only first frame
 
-            # Panel 1 (Tracking): at (PANEL_X, PANEL_Y)
+            # Calculate mouse coords for each panel
             p1_mx = pt.x - renderer.virt_x - PANEL_X
             p1_my = pt.y - renderer.virt_y - PANEL_Y
-            # Panel 2 (Display Quality): at (PANEL_X + PANEL_W + 10, PANEL_Y), height 420
             p2_x = PANEL_X + PANEL_W + 10
             p2_mx = pt.x - renderer.virt_x - p2_x
             p2_my = pt.y - renderer.virt_y - PANEL_Y
+            p3_x = PANEL_X + 2 * (PANEL_W + 10)
+            p3_mx = pt.x - renderer.virt_x - p3_x
+            p3_my = pt.y - renderer.virt_y - PANEL_Y
 
-            # Route to the correct panel based on cursor position
-            if 0 <= p2_mx <= PANEL_W and 0 <= p2_my <= 420:
+            # Route to correct panel
+            if 0 <= p3_mx <= PANEL_W and 0 <= p3_my <= 600:
+                settings_panel.handle_sound_mouse(p3_mx, p3_my, clicked)
+                if not mouse_down_now:
+                    settings_panel.handle_mouse_up()
+            elif 0 <= p2_mx <= PANEL_W and 0 <= p2_my <= 420:
                 settings_panel.handle_display_mouse(p2_mx, p2_my, clicked)
                 if not mouse_down_now:
                     settings_panel.handle_mouse_up()
