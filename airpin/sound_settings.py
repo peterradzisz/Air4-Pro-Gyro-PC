@@ -17,8 +17,8 @@ START_Y = 50
 class SoundPanel:
     """Sound output panel: list of devices with ON/OFF + volume."""
 
-    def __init__(self):
-        self._router = MultiAudioRouter()
+    def __init__(self, router=None):
+        self._router = router if router is not None else MultiAudioRouter()
         self._devices = []
         self._dragging = None  # device_id being dragged
         self._font = None

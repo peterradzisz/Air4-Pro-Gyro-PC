@@ -44,7 +44,7 @@ PRESETS = {
 }
 
 class SettingsPanel:
-    def __init__(self):
+    def __init__(self, audio_router=None):
         self._visible = True
         self._dragging = None
         self._reset_hovered = False
@@ -64,7 +64,7 @@ class SettingsPanel:
         self._snap_speed = settings_manager.get("snap_speed", 2.5)
         self._usb_reset = settings_manager.get("usb_reset", True)
         self._display = DisplayQualityTab()
-        self._sound = SoundPanel()
+        self._sound = SoundPanel(router=audio_router)
 
     @property
     def visible(self): return self._visible

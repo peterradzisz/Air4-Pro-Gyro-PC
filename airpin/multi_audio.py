@@ -172,6 +172,7 @@ class MultiAudioRouter:
                 stream.start()
                 self._output_streams[device_id] = stream
                 st["enabled"] = True
+                print(f"  Audio: Output -> {di['name']} at {sr}Hz (capture running: {self._running})")
                 return True
             except Exception as e:
                 print(f"  Audio: Device {device_id} failed: {e}")

@@ -315,7 +315,7 @@ def main():
                                     pitch_max_offset_frac=settings_manager.get('pitch_range', 0.10),
                                     speed_dead=deadzone,
                                     speed_full=0.40 + resp * 0.60)
-    settings_panel = SettingsPanel()
+    settings_panel = SettingsPanel(audio_router=audio)
     settings_panel.update_monitors(displays)
     # Settings start visible: remove WS_EX_TRANSPARENT so clicks reach panels
     if settings_panel.visible and renderer._hwnd:
