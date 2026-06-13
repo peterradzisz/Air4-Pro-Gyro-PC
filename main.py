@@ -327,6 +327,7 @@ def main():
     last_time = time.time()
     frame_count = 0
     _prev_mouse_down = False
+    _screenshot_req = False
 
     while running:
         pygame.event.pump()
@@ -642,6 +643,15 @@ def main():
                     glTexCoord2f(1, 0); glVertex2f(gpx + pw, gpy + ph)
                     glTexCoord2f(0, 0); glVertex2f(gpx, gpy + ph)
                     glEnd()
+
+        if _screenshot_req:
+            _screenshot_req = False
+            import datetime, os
+            os.makedirs("screenshots", exist_ok=True)
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            path = f"screenshots/airpin_{ts}.png"
+            renderer.capture_screenshot(path)
+            renderer.show_toast(f"Screenshot saved")
 
         pygame.display.flip()
         clock.tick(config.TARGET_FPS)

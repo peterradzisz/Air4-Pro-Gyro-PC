@@ -632,6 +632,19 @@ class SpatialRenderer:
         """Access the shader pipeline for setting effect values."""
         return self._pipeline
 
+    def capture_screenshot(self, filepath):
+        """Capture current OpenGL framebuffer to PNG file."""
+        try:
+            glReadBuffer(GL_BACK)
+            data = glReadPixels(0, 0, self.width, self.height, GL_RGB, GL_UNSIGNED_BYTE)
+            img = np.frombuffer(data, dtype=np.uint8).reshape(self.height, self.width, 3)
+            img = np.flipud(img)  # OpenGL origin is bottom-left
+            surf = pygame.surfarray.make_surface(np.swapaxes(img, 0, 1))
+            pygame.image.save(surf, filepath)
+            print(f"  Screenshot saved: {filepath}")
+        except Exception as e:
+            print(f"  Screenshot failed: {e}")
+
     def cleanup(self):
         self._show_system_cursor()
         for tex_id in self.textures.values():
