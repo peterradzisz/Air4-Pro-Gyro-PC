@@ -26,7 +26,7 @@ class MultiAudioRouter:
         self._running = False
         self._capture_stream = None
         self._output_streams = {}
-        self._ring_buffer = collections.deque(maxlen=20)
+        self._device_queues = {}
         self._lock = threading.Lock()
         self._devices = []
         self._device_states = {}
@@ -111,8 +111,10 @@ class MultiAudioRouter:
             sr = int(di["default_samplerate"])
             ch = min(di["max_input_channels"], 2)
             def cb(indata, frames, ti, status):
+                chunk = indata[:, :ch].copy()
                 with self._lock:
-                    self._ring_buffer.append(indata[:, :ch].copy())
+                    for dq in self._device_queues.values():
+                        dq.append(chunk)
             self._capture_stream = sd.InputStream(
                 device=self._capture_device_id, samplerate=sr,
                 channels=ch, dtype="float32", callback=cb,
@@ -138,7 +140,7 @@ class MultiAudioRouter:
         self._capture_stream = None
         self._output_streams.clear()
         with self._lock:
-            self._ring_buffer.clear()
+            self._device_queues.clear()
         self.active = False
 
     def toggle_device(self, device_id):
@@ -152,12 +154,17 @@ class MultiAudioRouter:
                 try: self._output_streams[device_id].close()
                 except Exception: pass
                 del self._output_streams[device_id]
+            with self._lock:
+                if device_id in self._device_queues:
+                    del self._device_queues[device_id]
             return False
         else:
             try:
                 di = sd.query_devices(device_id)
                 ch = min(di["max_output_channels"], 2)
                 sr = int(di["default_samplerate"])
+                with self._lock:
+                    self._device_queues[device_id] = collections.deque(maxlen=30)
                 cb = self._make_output_cb(device_id, ch)
                 stream = sd.OutputStream(device=device_id, samplerate=sr,
                     channels=ch, dtype="float32", callback=cb,
@@ -181,8 +188,9 @@ class MultiAudioRouter:
             vol = self._device_states[device_id]["volume"]
             chunk = None
             with self._lock:
-                if self._ring_buffer:
-                    chunk = self._ring_buffer[-1]
+                dq = self._device_queues.get(device_id)
+                if dq and len(dq) > 0:
+                    chunk = dq.popleft()
             if chunk is not None and len(chunk) > 0:
                 n = min(frames, chunk.shape[0])
                 co = min(channels, chunk.shape[1])

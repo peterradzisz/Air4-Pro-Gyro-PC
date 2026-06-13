@@ -251,16 +251,18 @@ class SpatialRenderer:
             self._cursor_hidden = False
 
     def draw_cursor(self, offset_x, offset_y, zoom=1.0):
-        """Draw cursor at the real Windows cursor position.
-        
-        The image shifts with head tracking but the cursor stays at its real
-        Windows position. The GL cursor should match exactly where Windows
-        thinks the cursor is, so the user sees it at the correct position
-        relative to the shifted image content.
-        """
+        """Draw cursor at the real Windows cursor position, shifted and scaled
+        to match the head-tracking-shifted, zoomed image content."""
         pt = ctypes.wintypes.POINT()
         user32.GetCursorPos(ctypes.byref(pt))
-        self.draw_cursor_at(float(pt.x), float(pt.y))
+        cx = float(pt.x)
+        cy = float(pt.y)
+        # Scale cursor position relative to display center, then apply head offset
+        center_x = self.virt_x + self.width * 0.5
+        center_y = self.virt_y + self.height * 0.5
+        cx = center_x + (cx - center_x) * zoom + offset_x
+        cy = center_y + (cy - center_y) * zoom + offset_y
+        self.draw_cursor_at(cx, cy)
 
     def draw_cursor_at(self, cx, cy):
         """Draw the cursor sprite at the given screen coordinates."""

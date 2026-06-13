@@ -45,7 +45,7 @@ PRESETS = {
 
 class SettingsPanel:
     def __init__(self):
-        self._visible = False
+        self._visible = True
         self._dragging = None
         self._reset_hovered = False
         self._gl_tex = None

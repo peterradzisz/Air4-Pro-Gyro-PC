@@ -317,6 +317,13 @@ def main():
                                     speed_full=0.40 + resp * 0.60)
     settings_panel = SettingsPanel()
     settings_panel.update_monitors(displays)
+    # Settings start visible: remove WS_EX_TRANSPARENT so clicks reach panels
+    if settings_panel.visible and renderer._hwnd:
+        import win32gui, win32con
+        ex_style = win32gui.GetWindowLong(renderer._hwnd, win32con.GWL_EXSTYLE)
+        ex_style &= ~win32con.WS_EX_TRANSPARENT
+        win32gui.SetWindowLong(renderer._hwnd, win32con.GWL_EXSTYLE, ex_style)
+        log.info('Settings visible at startup: click-through OFF')
     last_time = time.time()
     frame_count = 0
     _prev_mouse_down = False
@@ -539,7 +546,12 @@ def main():
         cursor_on_glasses = (target_disp['x'] <= pt.x < target_disp['x'] + target_disp['w'] and
                              target_disp['y'] <= pt.y < target_disp['y'] + target_disp['h'])
         if cursor_on_glasses and settings_manager.get("hide_cursor", True):
-            renderer.draw_cursor(pixel_offset_x, pixel_offset_y, display_zoom)
+            if settings_panel.visible:
+                # Settings open: cursor at real position (panels are at fixed pos)
+                renderer.draw_cursor(0, 0, 1.0)
+            else:
+                # Settings closed: cursor tracks with shifted/zoomed image
+                renderer.draw_cursor(pixel_offset_x, pixel_offset_y, display_zoom)
         # ── HUD ──
         if show_hud:
             n_vdd = len(vdd.get_displays()) if vdd else 0
