@@ -545,19 +545,20 @@ def main():
         renderer.draw_toast()
 
         # -- Settings panel mouse handling --
+        # Track mouse state every frame (prevents stale _prev_mouse_down)
+        mouse_buttons = pygame.mouse.get_pressed()
+        mouse_down_now = mouse_buttons[0]
         if settings_panel.visible:
             # Get actual cursor position (GetCursorPos works even with transparent windows)
             pt = ctypes.wintypes.POINT()
             user32.GetCursorPos(ctypes.byref(pt))
             panel_mx = pt.x - renderer.virt_x - PANEL_X
             panel_my = pt.y - renderer.virt_y - PANEL_Y
-            mouse_buttons = pygame.mouse.get_pressed()
-            mouse_down_now = mouse_buttons[0]
-            clicked = mouse_down_now and not _prev_mouse_down  # edge detection: only first frame
+            clicked = mouse_down_now and not _prev_mouse_down  # edge detection
             settings_panel.handle_mouse(panel_mx, panel_my, clicked)
             if not mouse_down_now:
                 settings_panel.handle_mouse_up()
-            _prev_mouse_down = mouse_down_now
+        _prev_mouse_down = mouse_down_now
 
         # -- Settings panel render --
         if settings_panel.visible:
@@ -591,6 +592,7 @@ def main():
     print("\nShutting down...")
 
     side_capture_running = False
+    time.sleep(0.05)  # let background thread exit before clearing
     side_captures.clear()
     if vdd:
         vdd.stop()
