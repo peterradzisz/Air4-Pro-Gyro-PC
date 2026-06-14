@@ -291,7 +291,7 @@ def main():
     print("  Left     Add display L   Right  Add display R")
     print("  +/-      Zoom            0   Zoom reset")
     print("  H        HUD            Shift+F  Focus game")
-    print("  S        Settings panel")
+    print("  S        Settings         C   Cursor on/off")
     print("  Q        Quit (removes virtual displays)")
     print()
 
@@ -325,10 +325,25 @@ def main():
         pygame.event.pump()
         triggered = hotkeys.poll()
 
+        # Cache all settings once per frame (avoids 16+ dict lookups/frame)
+        s_pitch_enabled = settings_manager.get('pitch_enabled', False)
+        s_invert_yaw = settings_manager.get('invert_yaw', False)
+        s_invert_pitch = settings_manager.get('invert_pitch', False)
+        s_hide_cursor = settings_manager.get("hide_cursor", True)
+        s_usb_reset = settings_manager.get('usb_reset', True)
+        s_yaw_range = settings_manager.get('yaw_range', 0.15)
+        s_pitch_range = settings_manager.get('pitch_range', 0.10)
+        s_deadzone = settings_manager.get('deadzone', 0.08)
+        s_gain = settings_manager.get('gain', 0.40)
+        s_decay = settings_manager.get('decay', 1.0)
+        s_snap_speed = settings_manager.get('snap_speed', 2.5)
+        s_snap_return = settings_manager.get('snap_return', 0.5)
+        s_edge_zoom = settings_manager.get('edge_zoom', 0.0)
+
         # Live-sync settings to config (so renderer reads current values)
-        config.PITCH_ENABLED = settings_manager.get('pitch_enabled', False)
-        config.INVERT_YAW = settings_manager.get('invert_yaw', False)
-        config.INVERT_PITCH = settings_manager.get('invert_pitch', False)
+        config.PITCH_ENABLED = s_pitch_enabled
+        config.INVERT_YAW = s_invert_yaw
+        config.INVERT_PITCH = s_invert_pitch
 
         if triggered:
             log.info(f"Hotkeys triggered: {triggered}")
@@ -398,7 +413,7 @@ def main():
                 win32gui.SetWindowLong(renderer._hwnd, win32con.GWL_EXSTYLE, ex_style)
             log.info(f"Settings panel: {'shown' if settings_panel.visible else 'hidden'} (click-through: {'OFF' if settings_panel.visible else 'ON'})")
         if 'toggle_cursor' in triggered:
-            current = settings_manager.get("hide_cursor", True)
+            current = s_hide_cursor
             settings_manager.set("hide_cursor", not current)
             if not current:
                 print("  Cursor on glasses: ON (GL cursor drawn)")
@@ -433,7 +448,7 @@ def main():
         last_time = now
 
         if tracker:
-            tracker.usb_reset_enabled = settings_manager.get('usb_reset', True)
+            tracker.usb_reset_enabled = s_usb_reset
 
         if tracker and tracking_enabled and tracker.imu_count > 0:
             gyro_mag = tracker.get_gyro_magnitude()
@@ -441,21 +456,21 @@ def main():
             # Air 4 Pro axis mapping: gx=[0] pitch, gy=[1] yaw, gz=[2] roll
             raw_gx, raw_gy, raw_gz = tracker.get_raw_gyro()
             # Update filter params from settings
-            follow.yaw_max_offset = settings_manager.get('yaw_range', 0.15) * target_disp['w']
-            follow.pitch_max_offset = settings_manager.get('pitch_range', 0.10) * target_disp['h']
-            follow.speed_dead = settings_manager.get('deadzone', 0.08)
+            follow.yaw_max_offset = s_yaw_range * target_disp['w']
+            follow.pitch_max_offset = s_pitch_range * target_disp['h']
+            follow.speed_dead = s_deadzone
             follow.speed_full = 0.60  # hardcoded, responsiveness slider removed
-            follow.gain = settings_manager.get('gain', 0.40)
-            follow.decay = settings_manager.get('decay', 1.0)
-            follow.snap_speed = settings_manager.get('snap_speed', 2.5)
-            follow.snap_return = settings_manager.get('snap_return', 0.5)
+            follow.gain = s_gain
+            follow.decay = s_decay
+            follow.snap_speed = s_snap_speed
+            follow.snap_return = s_snap_return
             # Yaw: raw gyro[1] = yaw angular velocity (rad/s)
             # Use per-axis speed for gate: yaw gate uses |gy| only
             yaw_sign = -1.0 if config.INVERT_YAW else 1.0
             yaw_speed = abs(raw_gy)
             pixel_offset_x = follow.update(yaw_sign * raw_gy, yaw_speed)
             # Pitch: raw gyro[0] = pitch angular velocity (rad/s)
-            if settings_manager.get('pitch_enabled', False):
+            if s_pitch_enabled:
                 pitch_sign = -1.0 if config.INVERT_PITCH else 1.0
                 pitch_speed = abs(raw_gx)
                 follow.update_pitch(pitch_sign * raw_gx, pitch_speed)
@@ -465,7 +480,7 @@ def main():
             # Diagnostic
             if frame_count % 600 == 0:
                 resp_val = follow._responsiveness(gyro_mag)
-                log.info(f"IMU diag: gy={raw_gy:+.4f} gx={raw_gx:+.4f} px_off={pixel_offset_x:.0f}px gain={follow.gain:.2f} decay={follow.decay:.4f} dead={settings_manager.get('deadzone', 0.08):.2f} mag={gyro_mag:.4f} resp={resp_val:.3f} yaw_out={follow.output:.0f} imu={tracker.imu_count}")
+                log.info(f"IMU diag: gy={raw_gy:+.4f} gx={raw_gx:+.4f} px_off={pixel_offset_x:.0f}px gain={follow.gain:.2f} decay={follow.decay:.4f} dead={s_deadzone:.2f} mag={gyro_mag:.4f} resp={resp_val:.3f} yaw_out={follow.output:.0f} imu={tracker.imu_count}")
         else:
             pixel_offset_x, pixel_offset_y = 0.0, 0.0
             # Diagnostic: why is head tracking not active?
@@ -477,7 +492,7 @@ def main():
         # Edge zoom: progressive zoom based on distance from center
         # Applied to a separate display_zoom so it doesn't compound into base zoom
         display_zoom = zoom
-        edge_zoom_setting = settings_manager.get('edge_zoom', 0.0)
+        edge_zoom_setting = s_edge_zoom
         if edge_zoom_setting > 0.0 and follow.yaw_max_offset > 0:
             offset_ratio = abs(pixel_offset_x) / follow.yaw_max_offset
             offset_ratio = min(1.0, offset_ratio)
@@ -519,7 +534,7 @@ def main():
         user32.GetCursorPos(ctypes.byref(pt))
         cursor_on_glasses = (target_disp['x'] <= pt.x < target_disp['x'] + target_disp['w'] and
                              target_disp['y'] <= pt.y < target_disp['y'] + target_disp['h'])
-        if cursor_on_glasses and settings_manager.get("hide_cursor", True):
+        if cursor_on_glasses and s_hide_cursor:
             renderer.draw_cursor(pixel_offset_x, pixel_offset_y, display_zoom)
         # ── HUD ──
         if show_hud:

@@ -160,10 +160,11 @@ def _is_mostly_black(data, threshold=BLACK_PIXEL_VALUE, sample_ratio=BLACK_SAMPL
     n_pixels = h * w
     n_samples = max(1, int(n_pixels * sample_ratio))
     # Deterministic stride sample (no RNG overhead).
-    stride = max(1, n_pixels // n_samples)
-    flat = data.reshape(n_pixels, data.shape[2])[::stride]
+    stride = max(1, int(np.sqrt(n_pixels // n_samples)) + 1)
+    # 2D strided view — no reshape, no temp array allocation.
     # Use max of RGB channels (ignore alpha). BGRA layout, so R = index 2.
-    rgb_max = flat[:, :3].max(axis=1)
+    sampled = data[::stride, ::stride, :3]
+    rgb_max = sampled.max(axis=2)
     black_frac = (rgb_max < threshold).sum() / rgb_max.size
     return black_frac >= 0.95
 
@@ -242,47 +243,49 @@ class ScreenCapture:
 
     def grab(self):
         """Return (w, h, bgra_array) or None."""
-        if self._method == "dxgi" and self._dxcam is not None:
-            try:
-                frame = self._dxcam.grab()
-            except Exception as e:
-                log.warning("dxcam.grab() failed mid-run, switching to BitBlt: %s", e)
-                self._method = "bitblt"
-                self._dxcam = None
-                return self.grab()
-            if frame is None:
+        for _attempt in range(3):  # max 3 attempts (bounded, no recursion)
+            if self._method == "dxgi" and self._dxcam is not None:
+                try:
+                    frame = self._dxcam.grab()
+                except Exception as e:
+                    log.warning("dxcam.grab() failed mid-run, switching to BitBlt: %s", e)
+                    self._method = "bitblt"
+                    self._dxcam = None
+                    continue  # try again with BitBlt fallback
+                if frame is None:
+                    return None
+                # dxcam returns (h, w, 4) BGRA
+                if frame.ndim == 3 and frame.shape[2] == 4:
+                    fh, fw = frame.shape[:2]
+                    return fw, fh, frame
                 return None
-            # dxcam returns (h, w, 4) BGRA
-            if frame.ndim == 3 and frame.shape[2] == 4:
-                fh, fw = frame.shape[:2]
-                return fw, fh, frame
-            return None
 
-        # BitBlt path. Also check for black frames to auto-promote to DXGI.
-        result = capture_screen_bitblt(self.x, self.y, self.width, self.height)
-        if result is None:
-            self._black_frame_count = 0
-            return None
-        w, h, data = result
-        if _is_mostly_black(data):
-            self._black_frame_count += 1
-            if (self._black_frame_count >= BLACK_FRAME_THRESHOLD
-                    and not (self._dxgi_tried and self._dxcam is None)):
-                log.info("BitBlt returned %d consecutive black frames; promoting to DXGI",
-                         self._black_frame_count)
-                if self._try_init_dxcam():
-                    # Hand back a fresh DXGI frame immediately if we can.
-                    try:
-                        frame = self._dxcam.grab()
-                        if frame is not None and frame.ndim == 3 and frame.shape[2] == 4:
-                            self._black_frame_count = 0
-                            fh, fw = frame.shape[:2]
-                            return fw, fh, frame
-                    except Exception as e:
-                        log.debug("DXGI grab after promote failed: %s", e)
-        else:
-            self._black_frame_count = 0
-        return w, h, data
+            # BitBlt path. Also check for black frames to auto-promote to DXGI.
+            result = capture_screen_bitblt(self.x, self.y, self.width, self.height)
+            if result is None:
+                self._black_frame_count = 0
+                return None
+            w, h, data = result
+            if _is_mostly_black(data):
+                self._black_frame_count += 1
+                if (self._black_frame_count >= BLACK_FRAME_THRESHOLD
+                        and not (self._dxgi_tried and self._dxcam is None)):
+                    log.info("BitBlt returned %d consecutive black frames; promoting to DXGI",
+                             self._black_frame_count)
+                    if self._try_init_dxcam():
+                        # Hand back a fresh DXGI frame immediately if we can.
+                        try:
+                            frame = self._dxcam.grab()
+                            if frame is not None and frame.ndim == 3 and frame.shape[2] == 4:
+                                self._black_frame_count = 0
+                                fh, fw = frame.shape[:2]
+                                return fw, fh, frame
+                        except Exception as e:
+                            log.debug("DXGI grab after promote failed: %s", e)
+            else:
+                self._black_frame_count = 0
+            return w, h, data
+        return None  # all attempts exhausted
 
     def reinit(self):
         """Stop and restart the capture pipeline (e.g. after display change)."""

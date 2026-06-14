@@ -163,6 +163,9 @@ class ImuTracker:
         self._last_gyro_mag = 0.0
         self._last_raw_gyro = np.zeros(3)
 
+        # Peak gyro values for axis identification (diagnostics)
+        self._peak_gyro = [0.0, 0.0, 0.0]
+
         self.usb_reset_enabled = True  # programmatically cycle USB before reconnect
         self._is_admin = _is_admin()
         if not self._is_admin:
@@ -257,9 +260,12 @@ class ImuTracker:
         evt = RAYNEO_Event()
         # Isolate this thread from comtypes MTA apartment initialized by dxcam.
         # Without this, the implicit MTA can interfere with USB HID polling.
+        # CoInitialize is called ONCE per thread (Windows COM requirement),
+        # not on every poll iteration.
+        comtypes_mod = None
         try:
-            import comtypes
-            comtypes.CoInitialize()
+            import comtypes as comtypes_mod
+            comtypes_mod.CoInitialize()
         except Exception:
             pass
 
@@ -267,125 +273,131 @@ class ImuTracker:
         stall_start = None
         reconnect_attempts = 0
 
-        while self._running:
-            rc = self.sdk.Rayneo_PollEvent(self.ctx, byref(evt), 100)
-            if rc != 0:
-                # Check for stall: no IMU data for too long
-                if self._imu_count == last_data_count:
-                    if stall_start is None:
-                        stall_start = time.monotonic()
-                    elif time.monotonic() - stall_start > 3.0:
-                        now = time.monotonic()
-                        if now < self._reconnect_cooldown:
-                            continue
-                        if self._reconnect_fail_count >= self._reconnect_max_fails:
-                            # Already gave up — just skip, don't spam
-                            if not self._gave_up_logged:
-                                print(f"  IMU: gave up after {self._reconnect_max_fails} failed reconnects. Replug glasses USB to recover.")
-                                logging.warning(f"IMU: gave up after {self._reconnect_max_fails} failed reconnects. Replug required.")
-                                self._gave_up_logged = True
-                            continue
-                        reconnect_attempts += 1
-                        print(f"  IMU stalled ({reconnect_attempts}x), reconnecting...")
-                        logging.warning(f"IMU stalled after {self._imu_count} samples, reconnecting (attempt {reconnect_attempts})")
-                        had_data_before = self._imu_count > 0
-                        self._reconnect()
+        try:
+            while self._running:
+                rc = self.sdk.Rayneo_PollEvent(self.ctx, byref(evt), 100)
+                if rc != 0:
+                    # Check for stall: no IMU data for too long
+                    if self._imu_count == last_data_count:
+                        if stall_start is None:
+                            stall_start = time.monotonic()
+                        elif time.monotonic() - stall_start > 3.0:
+                            now = time.monotonic()
+                            if now < self._reconnect_cooldown:
+                                continue
+                            if self._reconnect_fail_count >= self._reconnect_max_fails:
+                                # Already gave up — just skip, don't spam
+                                if not self._gave_up_logged:
+                                    print(f"  IMU: gave up after {self._reconnect_max_fails} failed reconnects. Replug glasses USB to recover.")
+                                    logging.warning(f"IMU: gave up after {self._reconnect_max_fails} failed reconnects. Replug required.")
+                                    self._gave_up_logged = True
+                                continue
+                            reconnect_attempts += 1
+                            print(f"  IMU stalled ({reconnect_attempts}x), reconnecting...")
+                            logging.warning(f"IMU stalled after {self._imu_count} samples, reconnecting (attempt {reconnect_attempts})")
+                            had_data_before = self._imu_count > 0
+                            self._reconnect()
+                            stall_start = None
+                            # After reconnect, set 5-second cooldown before we check stall again
+                            self._reconnect_cooldown = time.monotonic() + 5.0
+                            # If we had data before but now can't get any, count as failed cycle
+                            if had_data_before:
+                                self._reconnect_fail_count += 1
+                    else:
+                        last_data_count = self._imu_count
                         stall_start = None
-                        # After reconnect, set 5-second cooldown before we check stall again
-                        self._reconnect_cooldown = time.monotonic() + 5.0
-                        # If we had data before but now can't get any, count as failed cycle
-                        if had_data_before:
-                            self._reconnect_fail_count += 1
-                else:
-                    last_data_count = self._imu_count
-                    stall_start = None
-                    reconnect_attempts = 0
-                    self._reconnect_fail_count = 0
-                    self._gave_up_logged = False
-                continue
-            if evt.type == EVT_DETACHED:
-                self.connected = False
-                print("  IMU: device detached, reconnecting...")
-                logging.warning("IMU device detached, reconnecting")
-                self._reconnect()
-                continue
-            if evt.type != EVT_IMU or not evt.data.imu.valid:
-                continue
+                        reconnect_attempts = 0
+                        self._reconnect_fail_count = 0
+                        self._gave_up_logged = False
+                    continue
+                if evt.type == EVT_DETACHED:
+                    self.connected = False
+                    print("  IMU: device detached, reconnecting...")
+                    logging.warning("IMU device detached, reconnecting")
+                    self._reconnect()
+                    continue
+                if evt.type != EVT_IMU or not evt.data.imu.valid:
+                    continue
 
-            s = evt.data.imu
-            self._imu_count += 1
-            gyro = np.array([s.gyroRad[0], s.gyroRad[1], s.gyroRad[2]])
-            accel = np.array([s.acc[0], s.acc[1], s.acc[2]])
+                s = evt.data.imu
+                self._imu_count += 1
+                gyro = np.array([s.gyroRad[0], s.gyroRad[1], s.gyroRad[2]])
+                accel = np.array([s.acc[0], s.acc[1], s.acc[2]])
 
-            # ── Initialize orientation from accel on first sample ──
-            if not self._cf_initialized:
+                # ── Initialize orientation from accel on first sample ──
+                if not self._cf_initialized:
+                    ax, ay, az = accel
+                    self._raw_pitch = np.arctan2(-ax, np.sqrt(ay*ay + az*az))
+                    self._raw_roll = np.arctan2(ay, az)
+                    self._raw_yaw = 0.0
+                    with self._lock:
+                        self._yaw = 0.0
+                        self._pitch = self._raw_pitch
+                        self._roll = self._raw_roll
+                        self._ref_yaw = 0.0
+                        self._ref_pitch = self._raw_pitch
+                        self._ref_roll = self._raw_roll
+                    self._cf_initialized = True
+                    continue
+
+                # ── Subtract bias ──
+                gc = gyro - self._gyro_bias
+                gc = np.where(np.abs(gc) > GYRO_DEADZONE, gc, 0.0)
+                # Save gyro magnitude for movement detection
+                self._last_gyro_mag = float(np.sqrt(np.sum(gc * gc)))
+
+                self._last_raw_gyro = gc.copy()  # bias-corrected for drift-free integration
+                # Track peak gyro values for axis identification
+                for i in range(3):
+                    if abs(gc[i]) > abs(self._peak_gyro[i]):
+                        self._peak_gyro[i] = gc[i]
+                # Gyro axis diagnostic (every 500 samples = ~1 sec)
+                if self._imu_count % 500 == 0:
+                    logging.info(f"GYRO_DIAG: gx={gc[0]:+.4f} gy={gc[1]:+.4f} gz={gc[2]:+.4f} | peaks: [{self._peak_gyro[0]:+.4f}, {self._peak_gyro[1]:+.4f}, {self._peak_gyro[2]:+.4f}] | yaw={math.degrees(self._raw_yaw):+.1f} pitch={math.degrees(self._raw_pitch):+.1f} roll={math.degrees(self._raw_roll):+.1f} | mag={self._last_gyro_mag:.4f}")
+
+                # ── Compute dt ──
+                dt = 0.002
+                if self._last_tick > 0 and s.tick > self._last_tick:
+                    dt_t = (s.tick - self._last_tick) / 1000.0
+                    if 0.0001 < dt_t < 0.1:
+                        dt = dt_t
+                self._last_tick = s.tick
+
+                gx, gy, gz = gc
+
+                # ── Complementary filter ──
+                pitch_gyro = self._raw_pitch + gx * dt  # gx confirmed working for pitch
+                yaw_gyro   = self._raw_yaw   + gy * dt  # gy -> try yaw again (gz is dead on Air 4 Pro)
+                roll_gyro  = self._raw_roll  + gz * dt  # gz=0 on Air 4 Pro
+
                 ax, ay, az = accel
-                self._raw_pitch = np.arctan2(-ax, np.sqrt(ay*ay + az*az))
-                self._raw_roll = np.arctan2(ay, az)
-                self._raw_yaw = 0.0
+                g_norm = np.sqrt(ax*ax + ay*ay + az*az)
+                if g_norm > 0.5:
+                    pitch_accel = np.arctan2(-ax, np.sqrt(ay*ay + az*az))
+                    roll_accel = np.arctan2(ay, az)
+                else:
+                    pitch_accel = self._raw_pitch
+                    roll_accel = self._raw_roll
+
+                CF_ALPHA = 0.999
+                self._raw_pitch = CF_ALPHA * pitch_gyro + (1 - CF_ALPHA) * pitch_accel
+                self._raw_roll = CF_ALPHA * roll_gyro + (1 - CF_ALPHA) * roll_accel
+                self._raw_yaw = yaw_gyro * YAW_DECAY
+
+                # ── Output update ──
+                a = EMA_ALPHA
                 with self._lock:
-                    self._yaw = 0.0
-                    self._pitch = self._raw_pitch
-                    self._roll = self._raw_roll
-                    self._ref_yaw = 0.0
-                    self._ref_pitch = self._raw_pitch
-                    self._ref_roll = self._raw_roll
-                self._cf_initialized = True
-                continue
-
-            # ── Subtract bias ──
-            gc = gyro - self._gyro_bias
-            gc = np.where(np.abs(gc) > GYRO_DEADZONE, gc, 0.0)
-            # Save gyro magnitude for movement detection
-            self._last_gyro_mag = float(np.sqrt(np.sum(gc * gc)))
-
-            self._last_raw_gyro = gc.copy()  # bias-corrected for drift-free integration
-            # Track peak gyro values for axis identification
-            if not hasattr(self, '_peak_gyro'):
-                self._peak_gyro = [0.0, 0.0, 0.0]
-            for i in range(3):
-                if abs(gc[i]) > abs(self._peak_gyro[i]):
-                    self._peak_gyro[i] = gc[i]
-            # Gyro axis diagnostic (every 500 samples = ~1 sec)
-            if self._imu_count % 500 == 0:
-                logging.info(f"GYRO_DIAG: gx={gc[0]:+.4f} gy={gc[1]:+.4f} gz={gc[2]:+.4f} | peaks: [{self._peak_gyro[0]:+.4f}, {self._peak_gyro[1]:+.4f}, {self._peak_gyro[2]:+.4f}] | yaw={math.degrees(self._raw_yaw):+.1f} pitch={math.degrees(self._raw_pitch):+.1f} roll={math.degrees(self._raw_roll):+.1f} | mag={self._last_gyro_mag:.4f}")
-
-            # ── Compute dt ──
-            dt = 0.002
-            if self._last_tick > 0 and s.tick > self._last_tick:
-                dt_t = (s.tick - self._last_tick) / 1000.0
-                if 0.0001 < dt_t < 0.1:
-                    dt = dt_t
-            self._last_tick = s.tick
-
-            gx, gy, gz = gc
-
-            # ── Complementary filter ──
-            pitch_gyro = self._raw_pitch + gx * dt  # gx confirmed working for pitch
-            yaw_gyro   = self._raw_yaw   + gy * dt  # gy -> try yaw again (gz is dead on Air 4 Pro)
-            roll_gyro  = self._raw_roll  + gz * dt  # gz=0 on Air 4 Pro
-
-            ax, ay, az = accel
-            g_norm = np.sqrt(ax*ax + ay*ay + az*az)
-            if g_norm > 0.5:
-                pitch_accel = np.arctan2(-ax, np.sqrt(ay*ay + az*az))
-                roll_accel = np.arctan2(ay, az)
-            else:
-                pitch_accel = self._raw_pitch
-                roll_accel = self._raw_roll
-
-            CF_ALPHA = 0.999
-            self._raw_pitch = CF_ALPHA * pitch_gyro + (1 - CF_ALPHA) * pitch_accel
-            self._raw_roll = CF_ALPHA * roll_gyro + (1 - CF_ALPHA) * roll_accel
-            self._raw_yaw = yaw_gyro * YAW_DECAY
-
-            # ── Output update ──
-            a = EMA_ALPHA
-            with self._lock:
-                self._yaw = self._raw_yaw
-                self._pitch = a * self._raw_pitch + (1 - a) * self._pitch
-                rd = (self._raw_roll - self._roll + np.pi) % (2*np.pi) - np.pi
-                self._roll += rd * a
+                    self._yaw = self._raw_yaw
+                    self._pitch = a * self._raw_pitch + (1 - a) * self._pitch
+                    rd = (self._raw_roll - self._roll + np.pi) % (2*np.pi) - np.pi
+                    self._roll += rd * a
+        finally:
+            # Uninitialize COM for this thread (paired with CoInitialize above)
+            if comtypes_mod is not None:
+                try:
+                    comtypes_mod.CoUninitialize()
+                except Exception:
+                    pass
 
     def _usb_reset(self):
         """Programmatically disable and re-enable the USB device (VID=0x1BBB PID=0xAF50).

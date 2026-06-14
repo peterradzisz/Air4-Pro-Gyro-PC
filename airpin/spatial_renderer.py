@@ -23,6 +23,12 @@ import config
 user32 = ctypes.windll.user32
 WDA_EXCLUDEFROMCAPTURE = 0x00000011
 
+# Virtual screen metrics for GetSystemMetrics
+SM_XVIRTUALSCREEN = 76
+SM_YVIRTUALSCREEN = 77
+SM_CXVIRTUALSCREEN = 78
+SM_CYVIRTUALSCREEN = 79
+
 
 class SpatialRenderer:
     """Fullscreen overlay with orthographic rendering and mouse passthrough."""
@@ -47,13 +53,14 @@ class SpatialRenderer:
         self._toast_text = ""
         self._toast_start = 0.0
         self._toast_duration = 2.0  # seconds
+        self._hud_data_prev = None  # HUD surface caching
 
     def reinit_size(self):
         """Recreate overlay to cover the current virtual desktop."""
-        new_x = user32.GetSystemMetrics(76)
-        new_y = user32.GetSystemMetrics(77)
-        new_w = user32.GetSystemMetrics(78) or user32.GetSystemMetrics(0)
-        new_h = user32.GetSystemMetrics(79) or user32.GetSystemMetrics(1)
+        new_x = user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
+        new_y = user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
+        new_w = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN) or user32.GetSystemMetrics(0)
+        new_h = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN) or user32.GetSystemMetrics(1)
         if new_w == self.width and new_h == self.height and new_x == self.virt_x:
             return
 
@@ -366,6 +373,10 @@ class SpatialRenderer:
         """
         if not hud_data:
             return
+        # Skip re-render if HUD data unchanged (major perf win at 120 FPS)
+        if self._hud_data_prev is not None and hud_data == self._hud_data_prev:
+            return
+        self._hud_data_prev = dict(hud_data)
 
         pad = 16
         font_big = self._hud_font_big
@@ -424,14 +435,14 @@ class SpatialRenderer:
 
         # Info rows — higher contrast
         zoom = hud_data.get('zoom', 1.0)
-        yaw_deg = hud_data.get('yaw', 0.0)
-        pitch_deg = hud_data.get('pitch', 0.0)
+        yaw_px = hud_data.get('yaw', 0.0)
+        pitch_px = hud_data.get('pitch', 0.0)
 
         panel_names = hud_data.get('panels', [])
 
         rows = [
             (f"Zoom: {zoom:.0%}   Panels: {len(panel_names)}", (230, 240, 255)),
-            (f"Yaw: {yaw_deg:+6.1f}    Pitch: {pitch_deg:+6.1f}", (220, 235, 255)),
+            (f"Yaw: {yaw_px:+6.0f}px    Pitch: {pitch_px:+6.0f}px", (220, 235, 255)),
         ]
         if len(panel_names) > 1:
             panels_str = " | ".join(panel_names)
@@ -448,6 +459,7 @@ class SpatialRenderer:
             ("T", "Track"),
             ("P", "Pitch"),
             ("S", "Settings"),
+            ("C", "Cursor"),
             ("+/-", "Zoom"),
             ("0", "Reset"),
             ("I", "Invert"),

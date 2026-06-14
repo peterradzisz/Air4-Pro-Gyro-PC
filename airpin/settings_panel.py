@@ -61,6 +61,8 @@ class SettingsPanel:
         self._edge_zoom = settings_manager.get("edge_zoom", 0.0)
         self._snap_speed = settings_manager.get("snap_speed", 2.5)
         self._usb_reset = settings_manager.get("usb_reset", True)
+        self._dirty = True  # force first render
+        self._cached_result = None
 
     @property
     def visible(self): return self._visible
@@ -81,9 +83,15 @@ class SettingsPanel:
     @property
     def usb_reset(self): return self._usb_reset
 
-    def show(self): self._visible = True
-    def hide(self): self._visible = False
-    def toggle(self): self.hide() if self._visible else self.show()
+    def show(self):
+        self._dirty = True
+        self._visible = True
+    def hide(self):
+        self._dirty = True
+        self._visible = False
+    def toggle(self):
+        self._dirty = True
+        self.hide() if self._visible else self.show()
 
     def _ensure_font(self):
         if not self._font:
@@ -123,12 +131,14 @@ class SettingsPanel:
         return ([0.05, 0.05, 0.01, 0.10, 0.990, 0.00, 0.0][idx], [1.00, 1.00, 0.20, 1.00, 1.000, 0.49, 5.0][idx])
 
     def update_monitors(self, monitors):
+        self._dirty = True
         self._monitors = monitors
         t = settings_manager.get("target_monitor", 0)
         self._selected_monitor = min(t, len(monitors) - 1) if monitors else 0
 
     def handle_mouse(self, mx, my, clicked):
         if not self._visible: return False
+        self._dirty = True
         if DROP_X <= mx <= DROP_X + DROP_W and 725 <= my <= 753:
             if clicked:
                 self._usb_reset = not self._usb_reset
@@ -201,18 +211,24 @@ class SettingsPanel:
             return True
         return False
 
-    def handle_mouse_up(self): self._dragging = None
+    def handle_mouse_up(self):
+        self._dirty = True
+        self._dragging = None
 
     def _apply_preset(self, name):
         """Apply a named preset to all slider values and persist."""
         if name not in PRESETS:
             return
+        self._dirty = True
         for key, val in PRESETS[name].items():
             setattr(self, "_" + key, val)
             settings_manager.set(key, val)
 
     def render(self):
         if not self._visible: return None
+        if not self._dirty and self._cached_result is not None:
+            return None  # nothing changed, skip GL upload in main.py
+        self._dirty = False
         self._ensure_font()
         s = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)
         pygame.draw.rect(s, (15, 15, 25, 210), (0, 0, PANEL_W, PANEL_H), border_radius=10)
@@ -283,4 +299,6 @@ class SettingsPanel:
         pygame.draw.rect(s, usb_cc, (20, y, DROP_W, 28), border_radius=6)
         s.blit(self._font_sm.render(usb_label, True, (220, 220, 220)), (28, y + 4))
         s.blit(self._font_sm.render("* Restart for monitor change", True, (120, 120, 140)), (20, 758))
-        return s, PANEL_X, PANEL_Y, PANEL_W, PANEL_H
+        result = (s, PANEL_X, PANEL_Y, PANEL_W, PANEL_H)
+        self._cached_result = result
+        return result

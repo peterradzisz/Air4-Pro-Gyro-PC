@@ -7,8 +7,18 @@ in the project root, so they survive restarts without touching config.py.
 
 import os
 import json
+import time
+import atexit
+import threading
+import logging
 
 _CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "airpin_settings.json")
+_log = logging.getLogger(__name__)
+
+# ── Debounced save state ──────────────────────────────────────────────────────
+_dirty = False
+_last_change_time = 0.0
+_save_lock = threading.Lock()
 
 # ── Default values ────────────────────────────────────────────────────────────
 
@@ -17,7 +27,7 @@ DEFAULTS = {
     "sensitivity":         0.5,   # 0.1 (very little) → 1.5 (very responsive)
     "invert_yaw":          False,
     "invert_pitch":        False,
-    "pitch_enabled":       True,
+    "pitch_enabled":       False,
     "yaw_decay":           1.0,
     # Movement detection (smooth follow)
     "move_start_rad":      0.052,  # ~3 deg/s — threshold to start tracking
@@ -57,8 +67,8 @@ def _load():
         for k, v in DEFAULTS.items():
             _settings.setdefault(k, v)
         _settings.update(loaded)
-    except Exception:
-        pass
+    except (json.JSONDecodeError, IOError, OSError) as e:
+        _log.warning(f"Settings load failed, using defaults: {e}")
 
 
 def _save():
@@ -76,9 +86,11 @@ def get(key, default=None):
 
 
 def set(key, value):
-    """Set a setting value and persist to disk immediately."""
+    """Set a setting value. Disk write is debounced (500ms after last change)."""
+    global _dirty, _last_change_time
     _settings[key] = value
-    _save()
+    _dirty = True
+    _last_change_time = time.monotonic()
 
 
 def get_all():
@@ -87,10 +99,44 @@ def get_all():
 
 
 def reset_all():
-    """Reset every setting to its default and save."""
+    """Reset every setting to its default and persist."""
+    global _dirty, _last_change_time
     _settings.clear()
     _settings.update(DEFAULTS.copy())
-    _save()
+    _dirty = True
+    _last_change_time = time.monotonic()
+
+
+def flush():
+    """Force-save pending changes now (used by atexit on shutdown)."""
+    global _dirty
+    with _save_lock:
+        if _dirty:
+            _save()
+            _dirty = False
+
+
+def _debounce_loop():
+    """Background thread: save 500ms after the last change."""
+    global _dirty
+    while True:
+        time.sleep(0.5)
+        if not _dirty:
+            continue
+        if (time.monotonic() - _last_change_time) < 0.5:
+            continue
+        with _save_lock:
+            if _dirty:
+                _save()
+                _dirty = False
+
+
+# Background debounce thread (daemon — dies with the process)
+_debounce_thread = threading.Thread(target=_debounce_loop, daemon=True)
+_debounce_thread.start()
+
+# Ensure pending writes are flushed on normal interpreter shutdown
+atexit.register(flush)
 
 
 # Load on module import
