@@ -10,6 +10,11 @@ import threading
 import collections
 import time
 import numpy as np
+try:
+    import soxr
+    HAS_SOXR = True
+except ImportError:
+    HAS_SOXR = False
 
 try:
     import pyaudiowpatch as pyaudio
@@ -212,6 +217,9 @@ class MultiAudioRouter:
                 self._running = True
                 self.active = True
                 print(f"  Audio: Capturing {self._capture_sr}Hz via WASAPI loopback")
+                if self._capture_sr > 96000:
+                    print(f"  Audio: WARNING - {self._capture_sr}Hz causes heavy CPU + resampling artifacts")
+                    print(f"  Audio: TIP: Set this device to 48000Hz in Windows Sound > Device Properties > Advanced")
                 return True
             except Exception as e:
                 print(f"  Audio: PyAudio capture failed: {e}")
@@ -359,18 +367,21 @@ class MultiAudioRouter:
                         total += c.shape[0]
             if chunks:
                 data = np.concatenate(chunks) if len(chunks) > 1 else chunks[0]
-                # High-quality resampling (scipy polyphase with anti-aliasing)
+                # Resample using soxr (C-level, GIL-released, 50x faster than scipy)
                 if cap_sr != out_sr:
-                    try:
-                        from scipy.signal import resample_poly
-                        from math import gcd
-                        g = gcd(cap_sr, out_sr)
-                        data = resample_poly(data, out_sr // g, cap_sr // g, axis=0).astype(np.float32)
-                    except ImportError:
-                        ratio = cap_sr // out_sr
-                        if ratio > 1 and cap_sr % out_sr == 0:
-                            data = data[:len(data)//ratio*ratio].reshape(-1, ratio, data.shape[1]).mean(axis=0)
-                            data = data.reshape(-1, data.shape[-1])
+                    if HAS_SOXR:
+                        data = soxr.resample(data, cap_sr, out_sr, quality='HQ').astype(np.float32)
+                    else:
+                        try:
+                            from scipy.signal import resample_poly
+                            from math import gcd
+                            g = gcd(cap_sr, out_sr)
+                            data = resample_poly(data, out_sr // g, cap_sr // g, axis=0).astype(np.float32)
+                        except ImportError:
+                            ratio = cap_sr // out_sr
+                            if ratio > 1 and cap_sr % out_sr == 0:
+                                data = data[:len(data)//ratio*ratio].reshape(-1, ratio, data.shape[1]).mean(axis=0)
+                                data = data.reshape(-1, data.shape[-1])
                 n = min(frames, data.shape[0])
                 co = min(channels, data.shape[1])
                 outdata[:n, :co] = data[:n, :co] * vol
