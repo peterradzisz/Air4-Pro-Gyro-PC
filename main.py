@@ -546,8 +546,8 @@ def main():
 
         # -- Settings panel mouse handling --
         # Track mouse state every frame (prevents stale _prev_mouse_down)
-        mouse_buttons = pygame.mouse.get_pressed()
-        mouse_down_now = mouse_buttons[0]
+        # GetAsyncKeyState works for LAYERED+NOACTIVATE windows (pygame events dont)
+        mouse_down_now = bool(ctypes.windll.user32.GetAsyncKeyState(0x01) & 0x8000)
         if settings_panel.visible:
             # Get actual cursor position (GetCursorPos works even with transparent windows)
             pt = ctypes.wintypes.POINT()
