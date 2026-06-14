@@ -323,6 +323,10 @@ def main():
         ex_style = win32gui.GetWindowLong(renderer._hwnd, win32con.GWL_EXSTYLE)
         ex_style &= ~win32con.WS_EX_TRANSPARENT
         win32gui.SetWindowLong(renderer._hwnd, win32con.GWL_EXSTYLE, ex_style)
+        # SWP_FRAMECHANGED forces Windows to re-evaluate hit-testing for the whole window
+        win32gui.SetWindowPos(renderer._hwnd, 0, 0, 0, 0, 0,
+            win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOZORDER |
+            win32con.SWP_NOACTIVATE | win32con.SWP_FRAMECHANGED)
         log.info('Settings visible at startup: click-through OFF')
     last_time = time.time()
     frame_count = 0
@@ -404,6 +408,9 @@ def main():
                 else:
                     ex_style |= win32con.WS_EX_TRANSPARENT   # pass through
                 win32gui.SetWindowLong(renderer._hwnd, win32con.GWL_EXSTYLE, ex_style)
+                win32gui.SetWindowPos(renderer._hwnd, 0, 0, 0, 0, 0,
+                    win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOZORDER |
+                    win32con.SWP_NOACTIVATE | win32con.SWP_FRAMECHANGED)
             log.info(f"Settings panel: {'shown' if settings_panel.visible else 'hidden'} (click-through: {'OFF' if settings_panel.visible else 'ON'})")
         if 'toggle_cursor' in triggered:
             current = settings_manager.get("hide_cursor", True)
