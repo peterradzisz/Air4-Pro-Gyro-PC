@@ -46,6 +46,7 @@ class MultiAudioRouter:
         self._device_states = {}
         self._capture_device_name = ""
         self._capture_sr = 48000
+        self._dist_sr = 48000
         self._capture_channels = 2
         self._device_output_sr = {}
         self.active = False
@@ -104,6 +105,7 @@ class MultiAudioRouter:
                 loopback = pa.get_default_wasapi_loopback()
                 self._capture_device_name = loopback["name"].replace(" [Loopback]", "")
                 self._capture_sr = int(loopback["defaultSampleRate"])
+                self._dist_sr = min(self._capture_sr, 48000)
                 self._capture_channels = min(int(loopback["maxInputChannels"]), 2)
                 self._pa_loopback_index = loopback["index"]
                 pa.terminate()
@@ -268,6 +270,20 @@ class MultiAudioRouter:
                     chunk = chunk.reshape(-1, self._capture_channels)
                 else:
                     chunk = chunk.reshape(-1, 1)
+                # Resample to 48kHz in capture thread if capture rate is higher
+                if self._capture_sr > self._dist_sr:
+                    if HAS_SOXR:
+                        chunk = soxr.resample(chunk, self._capture_sr, self._dist_sr, quality='HQ').astype(np.float32)
+                    else:
+                        try:
+                            from scipy.signal import resample_poly
+                            from math import gcd
+                            g = gcd(self._capture_sr, self._dist_sr)
+                            chunk = resample_poly(chunk, self._dist_sr // g, self._capture_sr // g, axis=0).astype(np.float32)
+                        except ImportError:
+                            ratio = self._capture_sr // self._dist_sr
+                            if ratio > 1 and self._capture_sr % self._dist_sr == 0:
+                                chunk = chunk[:len(chunk)//ratio*ratio].reshape(-1, ratio, chunk.shape[1]).mean(axis=0)
                 ts = time.monotonic()
                 for dq in list(self._device_queues.values()):
                     dq.append((ts, chunk))
@@ -373,7 +389,7 @@ class MultiAudioRouter:
             vol = self._device_states[device_id]["volume"]
             delay = self._device_states[device_id].get("delay_ms", 0) / 1000.0
             now = time.monotonic()
-            cap_sr = self._capture_sr
+            cap_sr = self._dist_sr
             out_sr = self._device_output_sr.get(device_id, cap_sr)
 
             # How many capture-rate samples needed to fill output frames

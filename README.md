@@ -63,12 +63,18 @@ All shortcuts: hold **Ctrl+Alt** then press the key.
 | **R** | Recenter | Screen drifted |
 | **S** | Settings | Open/close settings panel |
 | **T** | Toggle tracking | Pause/resume head tracking |
+| **P** | Toggle pitch | Enable/disable vertical tracking |
+| **I** | Invert yaw | Flip left/right direction |
+| **C** | Cursor on glasses | Show/hide cursor on AR display |
+| **X** | Screenshot | Save glasses view to screenshots/ folder |
 | **H** | Toggle HUD | Show/hide status info |
-| **+/-** | Zoom | Bigger/smaller |
+| **+/-** | Zoom in/out | Bigger/smaller image |
 | **0** | Reset zoom | Back to 100% |
-| **Q** | Quit | Exit |
+| **Left/Right** | Add display | Add virtual display panel left/right |
+| **Shift+F** | Focus game | Give keyboard focus to the game |
+| **Q** | Quit | Exit (removes virtual displays) |
 
-**You need:** R (recenter), S (settings), T (pause tracking).
+**The 3 keys you need:** R (recenter), S (settings), T (pause tracking).
 
 ---
 
@@ -103,7 +109,9 @@ Press **Ctrl+Alt+S** to open. Two presets:
 | Screen drifts to one side | Ctrl+Alt+R to recenter. Unplug/replug USB |
 | Overlay on wrong screen | Ctrl+Alt+S > change monitor > restart |
 | Cursor clicks miss target | Pitch tracking shifts image but not cursor |
-| No sound in glasses | Set glasses as default audio in Windows |
+| No sound in glasses | Open Settings (Ctrl+Alt+S) > Sound tab > enable device |
+| Audio jitters/stutters | Set Windows default output to 48000Hz (not 192000Hz) |
+| Audio delayed | Adjust delay slider in Settings > Sound tab |
 | Black screen | Use borderless windowed mode in game |
 
 ---
