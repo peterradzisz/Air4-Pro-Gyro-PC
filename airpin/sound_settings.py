@@ -55,6 +55,11 @@ class SoundPanel:
         if 280 <= mx <= 380 and 38 <= my <= 62 and clicked:
             self._router.toggle_source_mute()
             return True
+        # Format fix button (only shown when rate > 48kHz)
+        if self._router.needs_format_fix:
+            if 20 <= mx <= 260 and 64 <= my <= 84 and clicked:
+                self._router.open_sound_settings()
+                return True
         for i, dev in enumerate(self._devices):
             y = START_Y + i * ROW_H
             toggle_y = y - 2
@@ -110,6 +115,12 @@ class SoundPanel:
         surface.blit(ms, (280 + (100 - ms.get_width()) // 2, 38 + (24 - ms.get_height()) // 2))
         if muted:
             surface.blit(self._font_sm.render("(glasses speaker off)", True, (180, 160, 100)), (20, 64))
+        # Format fix warning button (only when capture rate > 48kHz)
+        if self._router.needs_format_fix:
+            fy = 64 if not muted else 64
+            pygame.draw.rect(surface, (120, 60, 30, 220), (20, fy, 240, 20), border_radius=4)
+            ft = self._font_sm.render(f"FIX: Set to 48000Hz in Sound settings", True, (255, 200, 100))
+            surface.blit(ft, (24, fy + 2))
         for i, dev in enumerate(self._devices):
             y = START_Y + i * ROW_H
             enabled = dev["enabled"]

@@ -63,6 +63,18 @@ class MultiAudioRouter:
         return HAS_PA or HAS_SD
 
     @property
+    def needs_format_fix(self):
+        """True if capture rate > 48000 (causes CPU + quality issues)."""
+        return self._capture_sr > 48000
+
+    @staticmethod
+    def open_sound_settings():
+        """Open Windows Sound control panel for format change."""
+        import subprocess
+        subprocess.Popen(['cmd', '/c', 'start', 'control', 'mmsys.cpl', 'sounds'])
+        print("  Audio: Opened Sound settings. Right-click device -> Properties -> Advanced -> 48000 Hz")
+
+    @property
     def source_muted(self):
         return self._source_muted
 
