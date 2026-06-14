@@ -1,5 +1,6 @@
 """Sound output settings panel for AirPin."""
 import math
+import time
 import pygame
 from airpin.multi_audio import MultiAudioRouter
 
@@ -23,10 +24,15 @@ class SoundPanel:
         self._dragging = None  # device_id being dragged
         self._font = None
         self._font_sm = None
+        self._last_refresh = 0.0
         self._refresh()
 
     def _refresh(self):
-        """Refresh device list from router."""
+        """Refresh device list from router (throttled to 1/sec)."""
+        now = time.monotonic()
+        if now - self._last_refresh < 1.0:
+            return
+        self._last_refresh = now
         self._devices = self._router.list_devices()
 
     def _ensure_font(self):

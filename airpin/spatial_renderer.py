@@ -43,6 +43,11 @@ class SpatialRenderer:
         self.width = target_w or user32.GetSystemMetrics(0)
         self.height = target_h or user32.GetSystemMetrics(1)
         self.primary_width = target_w or user32.GetSystemMetrics(0)
+        # Fixed glasses display dimensions (don't change after reinit_size)
+        self._glasses_x = target_x
+        self._glasses_y = target_y
+        self._glasses_w = self.width
+        self._glasses_h = self.height
 
         # Toast notification state
         self._toast_text = ""
@@ -633,11 +638,17 @@ class SpatialRenderer:
         return self._pipeline
 
     def capture_screenshot(self, filepath):
-        """Capture current OpenGL framebuffer to PNG file."""
+        """Capture glasses display region of OpenGL framebuffer to PNG."""
         try:
             glReadBuffer(GL_BACK)
-            data = glReadPixels(0, 0, self.width, self.height, GL_RGB, GL_UNSIGNED_BYTE)
-            img = np.frombuffer(data, dtype=np.uint8).reshape(self.height, self.width, 3)
+            # Calculate glasses region within the framebuffer
+            # (handles VDD panels extending the virtual desktop)
+            fb_x = int(self._glasses_x - self.virt_x)
+            fb_y = int(self.height - (self._glasses_y - self.virt_y) - self._glasses_h)
+            fb_w = int(self._glasses_w)
+            fb_h = int(self._glasses_h)
+            data = glReadPixels(fb_x, fb_y, fb_w, fb_h, GL_RGB, GL_UNSIGNED_BYTE)
+            img = np.frombuffer(data, dtype=np.uint8).reshape(fb_h, fb_w, 3)
             img = np.flipud(img)  # OpenGL origin is bottom-left
             surf = pygame.surfarray.make_surface(np.swapaxes(img, 0, 1))
             pygame.image.save(surf, filepath)

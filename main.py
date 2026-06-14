@@ -577,13 +577,14 @@ def main():
         renderer.draw_toast()
 
         # -- Settings panel mouse handling --
+        # Track mouse state every frame (prevents stale _prev_mouse_down)
+        mouse_buttons = pygame.mouse.get_pressed()
+        mouse_down_now = mouse_buttons[0]
         if settings_panel.visible:
             # Get actual cursor position (GetCursorPos works even with transparent windows)
             pt = ctypes.wintypes.POINT()
             user32.GetCursorPos(ctypes.byref(pt))
-            mouse_buttons = pygame.mouse.get_pressed()
-            mouse_down_now = mouse_buttons[0]
-            clicked = mouse_down_now and not _prev_mouse_down  # edge detection: only first frame
+            clicked = mouse_down_now and not _prev_mouse_down  # edge detection
 
             # Calculate mouse coords for each panel
             p1_mx = pt.x - renderer.virt_x - PANEL_X
@@ -608,7 +609,7 @@ def main():
                 settings_panel.handle_mouse(p1_mx, p1_my, clicked)
                 if not mouse_down_now:
                     settings_panel.handle_mouse_up()
-            _prev_mouse_down = mouse_down_now
+        _prev_mouse_down = mouse_down_now
 
         # -- Settings panel render --
         if settings_panel.visible:
@@ -623,7 +624,7 @@ def main():
                 for i, pdata in enumerate(panels_to_draw):
                     surf, px, py, pw, ph = pdata
                     data = pygame.image.tostring(surf, "RGBA", True)
-                    tex_id_name = "_gl_tex" if i == 0 else "_gl_tex2"
+                    tex_id_name = f"_gl_tex_{i}"
                     tex_id = getattr(settings_panel, tex_id_name, None)
                     if tex_id is None:
                         tex_id = glGenTextures(1)
@@ -660,6 +661,7 @@ def main():
     print("\nShutting down...")
 
     side_capture_running = False
+    time.sleep(0.05)  # let background thread exit before clearing
     side_captures.clear()
     if vdd:
         vdd.stop()

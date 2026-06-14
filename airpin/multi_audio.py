@@ -130,10 +130,10 @@ class MultiAudioRouter:
             di = sd.query_devices(self._capture_device_id)
 
             if self._capture_method == "wasapi_loopback":
-                sr = int(di["default_samplerate"])
+                sr = self._samplerate
                 ch = min(di["max_output_channels"] or 2, 2)
             else:
-                sr = int(di["default_samplerate"])
+                sr = self._samplerate
                 ch = min(di["max_input_channels"], 2)
 
             def capture_cb(indata, frames, ti, status):
@@ -188,7 +188,7 @@ class MultiAudioRouter:
     def _start_stereo_mix(self):
         try:
             di = sd.query_devices(self._capture_device_id)
-            sr = int(di["default_samplerate"])
+            sr = self._samplerate
             ch = min(di["max_input_channels"], 2)
             def cb(indata, frames, ti, status):
                 chunk = indata[:, :ch].copy()
@@ -241,7 +241,7 @@ class MultiAudioRouter:
             try:
                 di = sd.query_devices(device_id)
                 ch = min(di["max_output_channels"], 2)
-                sr = int(di["default_samplerate"])
+                sr = self._samplerate
                 with self._lock:
                     self._device_queues[device_id] = collections.deque(maxlen=30)
                 cb = self._make_output_cb(device_id, ch)
