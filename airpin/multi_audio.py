@@ -7,6 +7,7 @@ Falls back to Stereo Mix if WASAPI loopback is unavailable.
 """
 
 import threading
+import time
 import collections
 import numpy as np
 
@@ -34,6 +35,7 @@ class MultiAudioRouter:
         self._capture_device_name = ""
         self._capture_method = ""
         self.active = False
+        self._samplerate = getattr(config, "AUDIO_SAMPLE_RATE", 48000)
         self._blocksize = getattr(config, "AUDIO_BUFFER_FRAMES", 1024)
         if HAS_SD:
             self._detect_devices()
@@ -95,14 +97,35 @@ class MultiAudioRouter:
                 self._capture_method = "stereo_mix"
                 capture_ids.add(best)
 
+        # Only show WASAPI and WDM-KS (skip legacy MME/DirectSound duplicates)
+        hostapis = sd.query_hostapis()
+        preferred_apis = set()
+        for ai, api in enumerate(hostapis):
+            if "WASAPI" in api["name"] or "WDM" in api["name"]:
+                preferred_apis.add(ai)
+        if not preferred_apis:
+            preferred_apis = set(range(len(hostapis)))
+        capture_brand = self._capture_device_name.split()[0].lower() if self._capture_device_name else ""
+        seen_brands = set()
+        if capture_brand:
+            seen_brands.add(capture_brand)
         for i, d in enumerate(devices):
             if d["max_output_channels"] > 0 and i not in capture_ids:
+                if d["hostapi"] not in preferred_apis:
+                    continue
+                nl = d["name"].lower()
+                if "sound mapper" in nl or "primary sound" in nl:
+                    continue
+                brand = d["name"].split()[0].lower() if d["name"].split() else nl
+                if brand in seen_brands:
+                    continue
+                seen_brands.add(brand)
                 self._devices.append({
                     "id": i, "name": d["name"],
                     "channels": min(d["max_output_channels"], 2),
-                    "sample_rate": int(d["default_samplerate"]),
+                    "sample_rate": self._samplerate,
                 })
-                self._device_states[i] = {"enabled": False, "volume": 0.8}
+                self._device_states[i] = {"enabled": False, "volume": 0.8, "delay_ms": 0}
 
     def list_devices(self):
         result = []
@@ -112,6 +135,7 @@ class MultiAudioRouter:
                 "id": d["id"], "name": d["name"],
                 "enabled": st.get("enabled", False),
                 "volume": st.get("volume", 0.8),
+                "delay_ms": st.get("delay_ms", 0),
                 "channels": d["channels"],
                 "sample_rate": d["sample_rate"],
             })
@@ -138,9 +162,10 @@ class MultiAudioRouter:
 
             def capture_cb(indata, frames, ti, status):
                 chunk = indata[:, :ch].copy()
+                ts = time.monotonic()
                 with self._lock:
                     for dq in self._device_queues.values():
-                        dq.append(chunk)
+                        dq.append((ts, chunk))
 
             if self._capture_method == "wasapi_loopback":
                 self._capture_stream = sd.InputStream(
@@ -192,9 +217,10 @@ class MultiAudioRouter:
             ch = min(di["max_input_channels"], 2)
             def cb(indata, frames, ti, status):
                 chunk = indata[:, :ch].copy()
+                ts = time.monotonic()
                 with self._lock:
                     for dq in self._device_queues.values():
-                        dq.append(chunk)
+                        dq.append((ts, chunk))
             self._capture_stream = sd.InputStream(
                 device=self._capture_device_id, samplerate=sr,
                 channels=ch, dtype="float32", callback=cb,
@@ -243,7 +269,7 @@ class MultiAudioRouter:
                 ch = min(di["max_output_channels"], 2)
                 sr = self._samplerate
                 with self._lock:
-                    self._device_queues[device_id] = collections.deque(maxlen=30)
+                    self._device_queues[device_id] = collections.deque(maxlen=100)
                 cb = self._make_output_cb(device_id, ch)
                 stream = sd.OutputStream(device=device_id, samplerate=sr,
                     channels=ch, dtype="float32", callback=cb,
@@ -264,11 +290,15 @@ class MultiAudioRouter:
     def _make_output_cb(self, device_id, channels):
         def cb(outdata, frames, ti, status):
             vol = self._device_states[device_id]["volume"]
+            delay = self._device_states[device_id].get("delay_ms", 0) / 1000.0
             chunk = None
+            now = time.monotonic()
             with self._lock:
                 dq = self._device_queues.get(device_id)
                 if dq and len(dq) > 0:
-                    chunk = dq.popleft()
+                    ts, peek = dq[0]
+                    if now - ts >= delay:
+                        _, chunk = dq.popleft()
             if chunk is not None and len(chunk) > 0:
                 n = min(frames, chunk.shape[0])
                 co = min(channels, chunk.shape[1])

@@ -11,7 +11,8 @@ KNOB_R = 10
 TOGGLE_X = 310
 TOGGLE_W = 70
 TOGGLE_H = 24
-ROW_H = 50
+ROW_H = 70
+MAX_DELAY_MS = 500
 START_Y = 50
 
 
@@ -73,10 +74,24 @@ class SoundPanel:
                 v = max(0.0, min(1.0, (mx - SLIDER_X) / SLIDER_W))
                 self._router.set_volume(dev["id"], v)
                 return True
+            # Delay slider drag (offset 22px below volume)
+            delay_y = y + 22
+            dky = delay_y + SLIDER_H // 2
+            dly = dev.get("delay_ms", 0)
+            dkx = SLIDER_X + (dly / MAX_DELAY_MS) * SLIDER_W
+            if self._dragging == ("delay", dev["id"]):
+                dv = max(0, min(MAX_DELAY_MS, int((mx - SLIDER_X) / SLIDER_W * MAX_DELAY_MS)))
+                self._router.set_delay(dev["id"], dv)
+                return True
+            if math.hypot(mx - dkx, my - dky) < KNOB_R + 6 and clicked:
+                self._dragging = ("delay", dev["id"])
+                dv = max(0, min(MAX_DELAY_MS, int((mx - SLIDER_X) / SLIDER_W * MAX_DELAY_MS)))
+                self._router.set_delay(dev["id"], dv)
+                return True
         return False
 
     def handle_mouse_up(self):
-        self._dragging = None
+        self._dragging = None  # clears both volume and delay drags
 
     def render(self, surface):
         """Draw sound panel onto given surface."""
@@ -107,5 +122,17 @@ class SoundPanel:
                 pygame.draw.circle(surface, (255, 255, 255), (int(kx), y + SLIDER_H // 2), KNOB_R)
                 pygame.draw.circle(surface, (60, 140, 220), (int(kx), y + SLIDER_H // 2), KNOB_R - 3)
                 surface.blit(self._font_sm.render(f"{vol:.0%}", True, (120, 130, 150)), (SLIDER_X + SLIDER_W + 5, y - 2))
+                # Delay slider (below volume)
+                dy = y + 22
+                dly = dev.get("delay_ms", 0)
+                pygame.draw.rect(surface, (50, 60, 80, 200), (SLIDER_X, dy, SLIDER_W, SLIDER_H), border_radius=4)
+                dkx = SLIDER_X + (dly / MAX_DELAY_MS) * SLIDER_W
+                dfw = dkx - SLIDER_X
+                if dfw > 0:
+                    pygame.draw.rect(surface, (140, 100, 60, 220), (SLIDER_X, dy, int(dfw), SLIDER_H), border_radius=4)
+                pygame.draw.circle(surface, (255, 255, 255), (int(dkx), dy + SLIDER_H // 2), KNOB_R)
+                pygame.draw.circle(surface, (140, 100, 60), (int(dkx), dy + SLIDER_H // 2), KNOB_R - 3)
+                dlabel = f"{dly}ms" if dly > 0 else "no delay"
+                surface.blit(self._font_sm.render(f"Delay: {dlabel}", True, (140, 140, 160)), (SLIDER_X, dy + 10))
             else:
                 pygame.draw.rect(surface, (35, 35, 45, 150), (SLIDER_X, y, SLIDER_W, SLIDER_H), border_radius=4)
