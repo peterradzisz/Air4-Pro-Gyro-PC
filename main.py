@@ -452,6 +452,8 @@ def main():
 
         if tracker:
             tracker.usb_reset_enabled = settings_manager.get('usb_reset', True)
+            tracker.gyro_deadzone = max(0.005, settings_manager.get('deadzone', 0.08) * 0.25)
+            tracker.gyro_deadzone = max(0.005, settings_manager.get('deadzone', 0.08) * 0.25)
 
         if tracker and tracking_enabled and tracker.imu_count > 0:
             gyro_mag = tracker.get_gyro_magnitude()

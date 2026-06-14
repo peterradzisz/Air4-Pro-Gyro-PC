@@ -113,6 +113,11 @@ class MultiAudioRouter:
             except Exception as e:
                 print(f"  Audio: WASAPI loopback failed: {e}")
 
+        # --- Suggest VB-Cable if using loopback (for multi-device sync) ---
+        if self._capture_device_name and 'loopback' in self._capture_device_name.lower():
+            print(f'  Audio: Tip: Install VB-Cable for TV+glasses audio sync')
+            print(f'         Download: https://vb-audio.com/Cable/')
+
         # --- Capture fallback: Stereo Mix via sounddevice ---
         if not self._capture_device_name and HAS_SD:
             _KW = ["stereo mix", "wave out", "what u hear", "mix"]

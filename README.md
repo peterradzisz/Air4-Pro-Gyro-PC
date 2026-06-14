@@ -106,12 +106,12 @@ Press **Ctrl+Alt+S** to open. Two presets:
 | Problem | Fix |
 |---------|-----|
 | Head tracking not working | Check USB cable. Ctrl+Alt+R to recenter |
-| Screen drifts to one side | Ctrl+Alt+R to recenter. Unplug/replug USB |
+| Screen drifts to one side | Ctrl+Alt+R to recenter. Increase Deadzone in Settings |
 | Overlay on wrong screen | Ctrl+Alt+S > change monitor > restart |
 | Cursor clicks miss target | Pitch tracking shifts image but not cursor |
 | No sound in glasses | Open Settings (Ctrl+Alt+S) > Sound tab > enable device |
 | Audio jitters/stutters | Set Windows default output to 48000Hz (not 192000Hz) |
-| Audio delayed | Adjust delay slider in Settings > Sound tab |
+| Audio delayed (echo vs TV) | Install VB-Cable (see Audio Setup below) |
 | Black screen | Use borderless windowed mode in game |
 
 ---
