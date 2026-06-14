@@ -41,10 +41,10 @@ from airpin.window_capture import WindowManager
 from airpin.spatial_renderer import SpatialRenderer
 from airpin.smooth_follow import SpatialTrackingFilter
 from airpin.hotkey_manager import HotkeyManager
-from airpin.audio_router import AudioRouter
+from airpin.multi_audio import MultiAudioRouter
 from airpin.virtual_display import VirtualDisplayManager
 from airpin import settings_manager
-from airpin.settings_panel import SettingsPanel, PANEL_X, PANEL_Y
+from airpin.settings_panel import SettingsPanel, PANEL_X, PANEL_Y, PANEL_W
 from OpenGL.GL import *
 
 # Module-level Windows API access
@@ -257,7 +257,7 @@ def main():
     side_thread.start()
 
     # ── Audio ────────────────────────────────────────────────────────────
-    audio = AudioRouter()
+    audio = MultiAudioRouter()
     if not args.no_audio and config.AUDIO_ENABLED:
         print("Starting audio routing...")
         if not audio.start():
@@ -291,7 +291,7 @@ def main():
     print("  Left     Add display L   Right  Add display R")
     print("  +/-      Zoom            0   Zoom reset")
     print("  H        HUD            Shift+F  Focus game")
-    print("  S        Settings         C   Cursor on/off")
+    print("  S        Settings panel")
     print("  Q        Quit (removes virtual displays)")
     print()
 
@@ -315,35 +315,32 @@ def main():
                                     pitch_max_offset_frac=settings_manager.get('pitch_range', 0.10),
                                     speed_dead=deadzone,
                                     speed_full=0.40 + resp * 0.60)
-    settings_panel = SettingsPanel()
+    settings_panel = SettingsPanel(audio_router=audio)
     settings_panel.update_monitors(displays)
+    # Settings start visible: remove WS_EX_TRANSPARENT so clicks reach panels
+    if settings_panel.visible and renderer._hwnd:
+        import win32gui, win32con
+        ex_style = win32gui.GetWindowLong(renderer._hwnd, win32con.GWL_EXSTYLE)
+        ex_style &= ~win32con.WS_EX_TRANSPARENT
+        win32gui.SetWindowLong(renderer._hwnd, win32con.GWL_EXSTYLE, ex_style)
+        # SWP_FRAMECHANGED forces Windows to re-evaluate hit-testing for the whole window
+        win32gui.SetWindowPos(renderer._hwnd, 0, 0, 0, 0, 0,
+            win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOZORDER |
+            win32con.SWP_NOACTIVATE | win32con.SWP_FRAMECHANGED)
+        log.info('Settings visible at startup: click-through OFF')
     last_time = time.time()
     frame_count = 0
     _prev_mouse_down = False
+    _screenshot_req = False
 
     while running:
         pygame.event.pump()
         triggered = hotkeys.poll()
 
-        # Cache all settings once per frame (avoids 16+ dict lookups/frame)
-        s_pitch_enabled = settings_manager.get('pitch_enabled', False)
-        s_invert_yaw = settings_manager.get('invert_yaw', False)
-        s_invert_pitch = settings_manager.get('invert_pitch', False)
-        s_hide_cursor = settings_manager.get("hide_cursor", True)
-        s_usb_reset = settings_manager.get('usb_reset', True)
-        s_yaw_range = settings_manager.get('yaw_range', 0.15)
-        s_pitch_range = settings_manager.get('pitch_range', 0.10)
-        s_deadzone = settings_manager.get('deadzone', 0.08)
-        s_gain = settings_manager.get('gain', 0.40)
-        s_decay = settings_manager.get('decay', 1.0)
-        s_snap_speed = settings_manager.get('snap_speed', 2.5)
-        s_snap_return = settings_manager.get('snap_return', 0.5)
-        s_edge_zoom = settings_manager.get('edge_zoom', 0.0)
-
         # Live-sync settings to config (so renderer reads current values)
-        config.PITCH_ENABLED = s_pitch_enabled
-        config.INVERT_YAW = s_invert_yaw
-        config.INVERT_PITCH = s_invert_pitch
+        config.PITCH_ENABLED = settings_manager.get('pitch_enabled', False)
+        config.INVERT_YAW = settings_manager.get('invert_yaw', False)
+        config.INVERT_PITCH = settings_manager.get('invert_pitch', False)
 
         if triggered:
             log.info(f"Hotkeys triggered: {triggered}")
@@ -411,9 +408,12 @@ def main():
                 else:
                     ex_style |= win32con.WS_EX_TRANSPARENT   # pass through
                 win32gui.SetWindowLong(renderer._hwnd, win32con.GWL_EXSTYLE, ex_style)
+                win32gui.SetWindowPos(renderer._hwnd, 0, 0, 0, 0, 0,
+                    win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOZORDER |
+                    win32con.SWP_NOACTIVATE | win32con.SWP_FRAMECHANGED)
             log.info(f"Settings panel: {'shown' if settings_panel.visible else 'hidden'} (click-through: {'OFF' if settings_panel.visible else 'ON'})")
         if 'toggle_cursor' in triggered:
-            current = s_hide_cursor
+            current = settings_manager.get("hide_cursor", True)
             settings_manager.set("hide_cursor", not current)
             if not current:
                 print("  Cursor on glasses: ON (GL cursor drawn)")
@@ -448,7 +448,7 @@ def main():
         last_time = now
 
         if tracker:
-            tracker.usb_reset_enabled = s_usb_reset
+            tracker.usb_reset_enabled = settings_manager.get('usb_reset', True)
 
         if tracker and tracking_enabled and tracker.imu_count > 0:
             gyro_mag = tracker.get_gyro_magnitude()
@@ -456,21 +456,21 @@ def main():
             # Air 4 Pro axis mapping: gx=[0] pitch, gy=[1] yaw, gz=[2] roll
             raw_gx, raw_gy, raw_gz = tracker.get_raw_gyro()
             # Update filter params from settings
-            follow.yaw_max_offset = s_yaw_range * target_disp['w']
-            follow.pitch_max_offset = s_pitch_range * target_disp['h']
-            follow.speed_dead = s_deadzone
+            follow.yaw_max_offset = settings_manager.get('yaw_range', 0.15) * target_disp['w']
+            follow.pitch_max_offset = settings_manager.get('pitch_range', 0.10) * target_disp['h']
+            follow.speed_dead = settings_manager.get('deadzone', 0.08)
             follow.speed_full = 0.60  # hardcoded, responsiveness slider removed
-            follow.gain = s_gain
-            follow.decay = s_decay
-            follow.snap_speed = s_snap_speed
-            follow.snap_return = s_snap_return
+            follow.gain = settings_manager.get('gain', 0.40)
+            follow.decay = settings_manager.get('decay', 1.0)
+            follow.snap_speed = settings_manager.get('snap_speed', 2.5)
+            follow.snap_return = settings_manager.get('snap_return', 0.5)
             # Yaw: raw gyro[1] = yaw angular velocity (rad/s)
             # Use per-axis speed for gate: yaw gate uses |gy| only
             yaw_sign = -1.0 if config.INVERT_YAW else 1.0
             yaw_speed = abs(raw_gy)
             pixel_offset_x = follow.update(yaw_sign * raw_gy, yaw_speed)
             # Pitch: raw gyro[0] = pitch angular velocity (rad/s)
-            if s_pitch_enabled:
+            if settings_manager.get('pitch_enabled', False):
                 pitch_sign = -1.0 if config.INVERT_PITCH else 1.0
                 pitch_speed = abs(raw_gx)
                 follow.update_pitch(pitch_sign * raw_gx, pitch_speed)
@@ -480,7 +480,7 @@ def main():
             # Diagnostic
             if frame_count % 600 == 0:
                 resp_val = follow._responsiveness(gyro_mag)
-                log.info(f"IMU diag: gy={raw_gy:+.4f} gx={raw_gx:+.4f} px_off={pixel_offset_x:.0f}px gain={follow.gain:.2f} decay={follow.decay:.4f} dead={s_deadzone:.2f} mag={gyro_mag:.4f} resp={resp_val:.3f} yaw_out={follow.output:.0f} imu={tracker.imu_count}")
+                log.info(f"IMU diag: gy={raw_gy:+.4f} gx={raw_gx:+.4f} px_off={pixel_offset_x:.0f}px gain={follow.gain:.2f} decay={follow.decay:.4f} dead={settings_manager.get('deadzone', 0.08):.2f} mag={gyro_mag:.4f} resp={resp_val:.3f} yaw_out={follow.output:.0f} imu={tracker.imu_count}")
         else:
             pixel_offset_x, pixel_offset_y = 0.0, 0.0
             # Diagnostic: why is head tracking not active?
@@ -492,7 +492,7 @@ def main():
         # Edge zoom: progressive zoom based on distance from center
         # Applied to a separate display_zoom so it doesn't compound into base zoom
         display_zoom = zoom
-        edge_zoom_setting = s_edge_zoom
+        edge_zoom_setting = settings_manager.get('edge_zoom', 0.0)
         if edge_zoom_setting > 0.0 and follow.yaw_max_offset > 0:
             offset_ratio = abs(pixel_offset_x) / follow.yaw_max_offset
             offset_ratio = min(1.0, offset_ratio)
@@ -525,6 +525,25 @@ def main():
         # ── Render all panels ──
         offsets = [p[0] for p in panels_render]
         slots = [p[1] for p in panels_render]
+
+        # Sync display quality settings to shader pipeline
+        dp = settings_panel.display
+        pipeline = renderer.pipeline
+        pipeline.brightness = dp.brightness
+        pipeline.gamma = dp.gamma
+        pipeline.sharpness = dp.sharpness
+        pipeline.vignette = dp.vignette
+        pipeline.chromatic = dp.chromatic
+        pipeline.temperature = dp.temperature
+        pipeline.enable_brightness = dp.enable_brightness
+        pipeline.enable_gamma = dp.enable_gamma
+        pipeline.enable_sharpness = dp.enable_sharpness
+        pipeline.enable_vignette = dp.enable_vignette
+        pipeline.enable_chromatic = dp.enable_chromatic
+        pipeline.enable_temperature = dp.enable_temperature
+        pipeline.hdr = dp.hdr
+        pipeline.enable_hdr = dp.enable_hdr
+
         renderer.render_panels(slots, offsets, pixel_offset_x, pixel_offset_y, display_zoom)
 
         # -- Cursor --
@@ -534,8 +553,13 @@ def main():
         user32.GetCursorPos(ctypes.byref(pt))
         cursor_on_glasses = (target_disp['x'] <= pt.x < target_disp['x'] + target_disp['w'] and
                              target_disp['y'] <= pt.y < target_disp['y'] + target_disp['h'])
-        if cursor_on_glasses and s_hide_cursor:
-            renderer.draw_cursor(pixel_offset_x, pixel_offset_y, display_zoom)
+        if cursor_on_glasses and settings_manager.get("hide_cursor", True):
+            if settings_panel.visible:
+                # Settings open: cursor at real position (panels are at fixed pos)
+                renderer.draw_cursor(0, 0, 1.0)
+            else:
+                # Settings closed: cursor tracks with shifted/zoomed image
+                renderer.draw_cursor(pixel_offset_x, pixel_offset_y, display_zoom)
         # ── HUD ──
         if show_hud:
             n_vdd = len(vdd.get_displays()) if vdd else 0
@@ -561,44 +585,82 @@ def main():
 
         # -- Settings panel mouse handling --
         # Track mouse state every frame (prevents stale _prev_mouse_down)
-        # GetAsyncKeyState works for LAYERED+NOACTIVATE windows (pygame events dont)
+        # Use GetAsyncKeyState instead of pygame.mouse.get_pressed()
+        # pygame events dont reach LAYERED+NOACTIVATE windows reliably
         mouse_down_now = bool(ctypes.windll.user32.GetAsyncKeyState(0x01) & 0x8000)
         if settings_panel.visible:
             # Get actual cursor position (GetCursorPos works even with transparent windows)
             pt = ctypes.wintypes.POINT()
             user32.GetCursorPos(ctypes.byref(pt))
-            panel_mx = pt.x - renderer.virt_x - PANEL_X
-            panel_my = pt.y - renderer.virt_y - PANEL_Y
             clicked = mouse_down_now and not _prev_mouse_down  # edge detection
-            settings_panel.handle_mouse(panel_mx, panel_my, clicked)
-            if not mouse_down_now:
-                settings_panel.handle_mouse_up()
+
+            # Calculate mouse coords for each panel
+            p1_mx = pt.x - renderer.virt_x - PANEL_X
+            p1_my = pt.y - renderer.virt_y - PANEL_Y
+            p2_x = PANEL_X + PANEL_W + 10
+            p2_mx = pt.x - renderer.virt_x - p2_x
+            p2_my = pt.y - renderer.virt_y - PANEL_Y
+            p3_x = PANEL_X + 2 * (PANEL_W + 10)
+            p3_mx = pt.x - renderer.virt_x - p3_x
+            p3_my = pt.y - renderer.virt_y - PANEL_Y
+
+            # Route to correct panel
+            if 0 <= p3_mx <= PANEL_W and 0 <= p3_my <= 600:
+                settings_panel.handle_sound_mouse(p3_mx, p3_my, clicked)
+                if not mouse_down_now:
+                    settings_panel.handle_mouse_up()
+            elif 0 <= p2_mx <= PANEL_W and 0 <= p2_my <= 420:
+                settings_panel.handle_display_mouse(p2_mx, p2_my, clicked)
+                if not mouse_down_now:
+                    settings_panel.handle_mouse_up()
+            else:
+                settings_panel.handle_mouse(p1_mx, p1_my, clicked)
+                if not mouse_down_now:
+                    settings_panel.handle_mouse_up()
         _prev_mouse_down = mouse_down_now
 
         # -- Settings panel render --
         if settings_panel.visible:
             panel_result = settings_panel.render()
             if panel_result:
-                surf, px, py, pw, ph = panel_result
-                data = pygame.image.tostring(surf, "RGBA", True)
-                if settings_panel._gl_tex is None:
-                    settings_panel._gl_tex = glGenTextures(1)
-                glBindTexture(GL_TEXTURE_2D, settings_panel._gl_tex)
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pw, ph, 0,
-                             GL_RGBA, GL_UNSIGNED_BYTE, data)
-                glEnable(GL_TEXTURE_2D)
-                glColor4f(1, 1, 1, 1)
-                # Global desktop coords: add renderer offset for non-primary monitors
-                gpx = renderer.virt_x + px
-                gpy = renderer.virt_y + py
-                glBegin(GL_QUADS)
-                glTexCoord2f(0, 1); glVertex2f(gpx, gpy)
-                glTexCoord2f(1, 1); glVertex2f(gpx + pw, gpy)
-                glTexCoord2f(1, 0); glVertex2f(gpx + pw, gpy + ph)
-                glTexCoord2f(0, 0); glVertex2f(gpx, gpy + ph)
-                glEnd()
+                # panel_result is now two tuples: (tracking_panel, display_panel)
+                if not isinstance(panel_result[0], tuple):
+                    # Fallback: single panel
+                    panels_to_draw = [panel_result]
+                else:
+                    panels_to_draw = list(panel_result)
+                for i, pdata in enumerate(panels_to_draw):
+                    surf, px, py, pw, ph = pdata
+                    data = pygame.image.tostring(surf, "RGBA", True)
+                    tex_id_name = f"_gl_tex_{i}"
+                    tex_id = getattr(settings_panel, tex_id_name, None)
+                    if tex_id is None:
+                        tex_id = glGenTextures(1)
+                        setattr(settings_panel, tex_id_name, tex_id)
+                    glBindTexture(GL_TEXTURE_2D, tex_id)
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pw, ph, 0,
+                                 GL_RGBA, GL_UNSIGNED_BYTE, data)
+                    glEnable(GL_TEXTURE_2D)
+                    glColor4f(1, 1, 1, 1)
+                    gpx = renderer.virt_x + px
+                    gpy = renderer.virt_y + py
+                    glBegin(GL_QUADS)
+                    glTexCoord2f(0, 1); glVertex2f(gpx, gpy)
+                    glTexCoord2f(1, 1); glVertex2f(gpx + pw, gpy)
+                    glTexCoord2f(1, 0); glVertex2f(gpx + pw, gpy + ph)
+                    glTexCoord2f(0, 0); glVertex2f(gpx, gpy + ph)
+                    glEnd()
+
+        if _screenshot_req:
+            _screenshot_req = False
+            import datetime, os
+            os.makedirs("screenshots", exist_ok=True)
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            path = f"screenshots/airpin_{ts}.png"
+            renderer.capture_screenshot(path)
+            renderer.show_toast(f"Screenshot saved")
 
         pygame.display.flip()
         clock.tick(config.TARGET_FPS)

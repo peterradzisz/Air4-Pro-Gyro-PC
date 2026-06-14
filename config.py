@@ -61,6 +61,7 @@ HOTKEYS = {
     'toggle_settings':(MOD_CTRL | MOD_ALT, ord('S')),  # ← Settings panel
     'toggle_cursor':   (MOD_CTRL | MOD_ALT, ord('C')),
     'quit':           (MOD_CTRL | MOD_ALT, ord('Q')),
+    'screenshot':     (MOD_CTRL | MOD_ALT, ord('X')),  # Ctrl+Alt+X
 }
 
 # Zoom settings

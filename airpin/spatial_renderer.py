@@ -19,6 +19,7 @@ import win32gui
 import win32con
 
 import config
+from airpin.shader_pipeline import ShaderPipeline
 
 user32 = ctypes.windll.user32
 WDA_EXCLUDEFROMCAPTURE = 0x00000011
@@ -48,12 +49,20 @@ class SpatialRenderer:
         self.width = target_w or user32.GetSystemMetrics(0)
         self.height = target_h or user32.GetSystemMetrics(1)
         self.primary_width = target_w or user32.GetSystemMetrics(0)
+        # Fixed glasses display dimensions (don't change after reinit_size)
+        self._glasses_x = target_x
+        self._glasses_y = target_y
+        self._glasses_w = self.width
+        self._glasses_h = self.height
 
         # Toast notification state
         self._toast_text = ""
         self._toast_start = 0.0
         self._toast_duration = 2.0  # seconds
         self._hud_data_prev = None  # HUD surface caching
+
+        # Post-processing shader pipeline
+        self._pipeline = ShaderPipeline(self.width, self.height)
 
     def reinit_size(self):
         """Recreate overlay to cover the current virtual desktop."""
@@ -109,6 +118,7 @@ class SpatialRenderer:
         self._setup_gl()
         # Invalidate all textures (GL context was recreated)
         self.invalidate_textures()
+        self._pipeline.resize(self.width, self.height)
         self._hud_font = pygame.font.SysFont("segoeui", 20)
         self._hud_font_big = pygame.font.SysFont("segoeui", 28, bold=True)
         self._hud_tex = glGenTextures(1)
@@ -172,6 +182,7 @@ class SpatialRenderer:
         self._hud_font_big = pygame.font.SysFont("segoeui", 28, bold=True)
         self._hud_tex = glGenTextures(1)
         self._cursor_tex = self._create_cursor_texture()
+        self._pipeline.init()
         self._initialized = True
         print(f"  Overlay: {self.width}x{self.height}, LAYERED+TRANSPARENT, custom cursor")
 
@@ -252,16 +263,18 @@ class SpatialRenderer:
             self._cursor_hidden = False
 
     def draw_cursor(self, offset_x, offset_y, zoom=1.0):
-        """Draw cursor at the real Windows cursor position.
-        
-        The image shifts with head tracking but the cursor stays at its real
-        Windows position. The GL cursor should match exactly where Windows
-        thinks the cursor is, so the user sees it at the correct position
-        relative to the shifted image content.
-        """
+        """Draw cursor at the real Windows cursor position, shifted and scaled
+        to match the head-tracking-shifted, zoomed image content."""
         pt = ctypes.wintypes.POINT()
         user32.GetCursorPos(ctypes.byref(pt))
-        self.draw_cursor_at(float(pt.x), float(pt.y))
+        cx = float(pt.x)
+        cy = float(pt.y)
+        # Scale cursor position relative to display center, then apply head offset
+        center_x = self.virt_x + self.width * 0.5
+        center_y = self.virt_y + self.height * 0.5
+        cx = center_x + (cx - center_x) * zoom + offset_x
+        cy = center_y + (cy - center_y) * zoom + offset_y
+        self.draw_cursor_at(cx, cy)
 
     def draw_cursor_at(self, cx, cy):
         """Draw the cursor sprite at the given screen coordinates."""
@@ -314,8 +327,11 @@ class SpatialRenderer:
                       target_x=None, target_y=None, target_w=None, target_h=None):
         """
         Render captured panels centered on the target display with pixel offset.
-        Overlay is transparent — only the captured textures are drawn.
+        Panels render to FBO if post-processing is enabled, then composited.
         """
+        use_pipeline = self._pipeline.any_enabled
+        if use_pipeline:
+            self._pipeline.begin_capture()
         glClear(GL_COLOR_BUFFER_BIT)
         glLoadIdentity()
 
@@ -364,6 +380,20 @@ class SpatialRenderer:
 
         # Disable scissor so HUD can draw freely
         glDisable(GL_SCISSOR_TEST)
+
+        # Post-process: unbind FBO, draw fullscreen quad with shader
+        if use_pipeline:
+            self._pipeline.end_capture_and_draw()
+            # Restore orthographic projection (pipeline uses NDC)
+            glMatrixMode(GL_PROJECTION)
+            glLoadIdentity()
+            glOrtho(self.virt_x, self.virt_x + self.width,
+                    self.virt_y + self.height, self.virt_y, -1, 1)
+            glMatrixMode(GL_MODELVIEW)
+            glLoadIdentity()
+        else:
+            # No pipeline - clear was already done at start
+            pass
 
     def draw_hud(self, hud_data):
         """
@@ -614,6 +644,30 @@ class SpatialRenderer:
             del self.textures[slot_id]
         self._tex_sizes.pop(slot_id, None)
 
+    @property
+    def pipeline(self):
+        """Access the shader pipeline for setting effect values."""
+        return self._pipeline
+
+    def capture_screenshot(self, filepath):
+        """Capture glasses display region of OpenGL framebuffer to PNG."""
+        try:
+            glReadBuffer(GL_BACK)
+            # Calculate glasses region within the framebuffer
+            # (handles VDD panels extending the virtual desktop)
+            fb_x = int(self._glasses_x - self.virt_x)
+            fb_y = int(self.height - (self._glasses_y - self.virt_y) - self._glasses_h)
+            fb_w = int(self._glasses_w)
+            fb_h = int(self._glasses_h)
+            data = glReadPixels(fb_x, fb_y, fb_w, fb_h, GL_RGB, GL_UNSIGNED_BYTE)
+            img = np.frombuffer(data, dtype=np.uint8).reshape(fb_h, fb_w, 3)
+            img = np.flipud(img)  # OpenGL origin is bottom-left
+            surf = pygame.surfarray.make_surface(np.swapaxes(img, 0, 1))
+            pygame.image.save(surf, filepath)
+            print(f"  Screenshot saved: {filepath}")
+        except Exception as e:
+            print(f"  Screenshot failed: {e}")
+
     def cleanup(self):
         self._show_system_cursor()
         for tex_id in self.textures.values():
@@ -629,5 +683,6 @@ class SpatialRenderer:
             except Exception:
                 pass
         self._hud_tex = None
+        self._pipeline.cleanup()
         self._hud_font = None
         self._initialized = False

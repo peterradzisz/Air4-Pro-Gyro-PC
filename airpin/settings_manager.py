@@ -27,7 +27,7 @@ DEFAULTS = {
     "sensitivity":         0.5,   # 0.1 (very little) → 1.5 (very responsive)
     "invert_yaw":          False,
     "invert_pitch":        False,
-    "pitch_enabled":       False,
+    "pitch_enabled":       True,
     "yaw_decay":           1.0,
     # Movement detection (smooth follow)
     "move_start_rad":      0.052,  # ~3 deg/s — threshold to start tracking

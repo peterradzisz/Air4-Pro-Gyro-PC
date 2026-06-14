@@ -3,6 +3,8 @@
 import math
 import pygame
 from airpin import settings_manager
+from airpin.display_settings import DisplayQualityTab
+from airpin.sound_settings import SoundPanel
 
 PANEL_W = 400
 PANEL_H = 810
@@ -42,8 +44,8 @@ PRESETS = {
 }
 
 class SettingsPanel:
-    def __init__(self):
-        self._visible = False
+    def __init__(self, audio_router=None):
+        self._visible = True
         self._dragging = None
         self._reset_hovered = False
         self._gl_tex = None
@@ -61,8 +63,8 @@ class SettingsPanel:
         self._edge_zoom = settings_manager.get("edge_zoom", 0.0)
         self._snap_speed = settings_manager.get("snap_speed", 2.5)
         self._usb_reset = settings_manager.get("usb_reset", True)
-        self._dirty = True  # force first render
-        self._cached_result = None
+        self._display = DisplayQualityTab()
+        self._sound = SoundPanel(router=audio_router)
 
     @property
     def visible(self): return self._visible
@@ -82,16 +84,14 @@ class SettingsPanel:
     def snap_speed(self): return self._snap_speed
     @property
     def usb_reset(self): return self._usb_reset
+    @property
+    def display(self): return self._display
+    @property
+    def sound(self): return self._sound
 
-    def show(self):
-        self._dirty = True
-        self._visible = True
-    def hide(self):
-        self._dirty = True
-        self._visible = False
-    def toggle(self):
-        self._dirty = True
-        self.hide() if self._visible else self.show()
+    def show(self): self._visible = True
+    def hide(self): self._visible = False
+    def toggle(self): self.hide() if self._visible else self.show()
 
     def _ensure_font(self):
         if not self._font:
@@ -131,14 +131,12 @@ class SettingsPanel:
         return ([0.05, 0.05, 0.01, 0.10, 0.990, 0.00, 0.0][idx], [1.00, 1.00, 0.20, 1.00, 1.000, 0.49, 5.0][idx])
 
     def update_monitors(self, monitors):
-        self._dirty = True
         self._monitors = monitors
         t = settings_manager.get("target_monitor", 0)
         self._selected_monitor = min(t, len(monitors) - 1) if monitors else 0
 
     def handle_mouse(self, mx, my, clicked):
         if not self._visible: return False
-        self._dirty = True
         if DROP_X <= mx <= DROP_X + DROP_W and 725 <= my <= 753:
             if clicked:
                 self._usb_reset = not self._usb_reset
@@ -202,6 +200,7 @@ class SettingsPanel:
         self._reset_hovered = BTN_X <= mx <= BTN_X + BTN_W and BTN_Y <= my <= BTN_Y + BTN_H
         if self._reset_hovered and clicked:
             settings_manager.reset_all()
+            self._display.reset_all()
             for k in ["yaw_range", "pitch_range", "deadzone", "gain", "decay", "edge_zoom", "snap_speed", "usb_reset"]:
                 setattr(self, "_" + k, settings_manager.get(k, 0.15))
             self._hide_cursor = settings_manager.get("hide_cursor", True)
@@ -211,30 +210,37 @@ class SettingsPanel:
             return True
         return False
 
-    def handle_mouse_up(self):
-        self._dirty = True
-        self._dragging = None
+    def handle_display_mouse(self, mx, my, clicked):
+        """Route mouse events to the Display Quality panel (panel 2)."""
+        if not self._visible: return False
+        return self._display.handle_mouse(mx, my, clicked)
+
+    def handle_sound_mouse(self, mx, my, clicked):
+        """Route mouse events to Sound panel (panel 3)."""
+        if not self._visible: return False
+        return self._sound.handle_mouse(mx, my, clicked)
+
+    def handle_mouse_up(self): self._dragging = None; self._display.handle_mouse_up(); self._sound.handle_mouse_up()
 
     def _apply_preset(self, name):
         """Apply a named preset to all slider values and persist."""
         if name not in PRESETS:
             return
-        self._dirty = True
         for key, val in PRESETS[name].items():
             setattr(self, "_" + key, val)
             settings_manager.set(key, val)
 
     def render(self):
         if not self._visible: return None
-        if not self._dirty and self._cached_result is not None:
-            return None  # nothing changed, skip GL upload in main.py
-        self._dirty = False
         self._ensure_font()
-        s = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)
-        pygame.draw.rect(s, (15, 15, 25, 210), (0, 0, PANEL_W, PANEL_H), border_radius=10)
-        pygame.draw.rect(s, (60, 130, 220, 120), (0, 0, PANEL_W, PANEL_H), width=2, border_radius=10)
+
+        # ── Panel 1: Tracking Settings ──
+        p1_h = 780
+        s = pygame.Surface((PANEL_W, p1_h), pygame.SRCALPHA)
+        pygame.draw.rect(s, (15, 15, 25, 210), (0, 0, PANEL_W, p1_h), border_radius=10)
+        pygame.draw.rect(s, (60, 130, 220, 120), (0, 0, PANEL_W, p1_h), width=2, border_radius=10)
         s.blit(self._font.render("Settings", True, (100, 180, 255)), (20, 16))
-        # Close button (X) in top-right corner
+        # Close button
         x_btn_size = 30
         x_btn_x = PANEL_W - x_btn_size - 10
         x_btn_y = 8
@@ -242,6 +248,8 @@ class SettingsPanel:
         x_txt = self._font.render("X", True, (180, 180, 190))
         s.blit(x_txt, (x_btn_x + (x_btn_size - x_txt.get_width()) // 2,
                         x_btn_y + (x_btn_size - x_txt.get_height()) // 2))
+
+        # Tracking sliders
         vals = [self._yaw_range, self._pitch_range, self._deadzone, self._gain, self._decay, self._edge_zoom, self._snap_speed]
         for idx in range(7):
             sx, sy, sw, sh = self._slider_geom(idx)
@@ -255,6 +263,7 @@ class SettingsPanel:
             pygame.draw.circle(s, (60, 140, 220), (int(kx), sy + sh // 2), KNOB_R - 3)
             s.blit(self._font_sm.render(str(mn), True, (120, 130, 150)), (sx, sy + 16))
             s.blit(self._font_sm.render(str(mx2), True, (120, 130, 150)), (sx + sw - 15, sy + 16))
+
         # Preset buttons
         pygame.draw.rect(s, (40, 80, 120, 200), (20, 545, 170, 30), border_radius=6)
         pt1 = self._font_sm.render("Movies", True, (200, 220, 255))
@@ -262,12 +271,16 @@ class SettingsPanel:
         pygame.draw.rect(s, (120, 60, 40, 200), (210, 545, 170, 30), border_radius=6)
         pt2 = self._font_sm.render("Games", True, (200, 220, 255))
         s.blit(pt2, (210 + (170 - pt2.get_width()) // 2, 550))
+
+        # Reset
         bc = (80, 50, 50, 220) if self._reset_hovered else (50, 50, 60, 200)
         pygame.draw.rect(s, bc, (BTN_X, BTN_Y, BTN_W, BTN_H), border_radius=6)
         pygame.draw.rect(s, (100, 100, 120, 150), (BTN_X, BTN_Y, BTN_W, BTN_H), width=1, border_radius=6)
-        bt = self._font_sm.render("Reset All to Defaults", True, (220, 200, 200))
+        bt = self._font_sm.render("Reset All", True, (220, 200, 200))
         tw, th = bt.get_size()
         s.blit(bt, (BTN_X + (BTN_W - tw) // 2, BTN_Y + (BTN_H - th) // 2))
+
+        # Monitor dropdown
         y = 620
         s.blit(self._font_sm.render("Target Monitor:", True, (170, 200, 230)), (20, y))
         y += 20
@@ -288,17 +301,38 @@ class SettingsPanel:
                 y += 28
         y = 690
         on_off = "ON" if self._hide_cursor else "OFF"
-        cl = f"Show Cursor on Glasses: {on_off}"
+        cl = f"Show Cursor: {on_off}"
         cc = (40, 120, 60, 180) if self._hide_cursor else (100, 50, 50, 180)
         pygame.draw.rect(s, cc, (20, y, DROP_W, 28), border_radius=6)
         s.blit(self._font_sm.render(cl, True, (220, 220, 220)), (28, y + 4))
         y = 725
         usb_on_off = "ON" if self._usb_reset else "OFF"
-        usb_label = f"USB Reset on Stall: {usb_on_off}"
+        usb_label = f"USB Reset: {usb_on_off}"
         usb_cc = (40, 120, 60, 180) if self._usb_reset else (100, 50, 50, 180)
         pygame.draw.rect(s, usb_cc, (20, y, DROP_W, 28), border_radius=6)
         s.blit(self._font_sm.render(usb_label, True, (220, 220, 220)), (28, y + 4))
         s.blit(self._font_sm.render("* Restart for monitor change", True, (120, 120, 140)), (20, 758))
-        result = (s, PANEL_X, PANEL_Y, PANEL_W, PANEL_H)
-        self._cached_result = result
-        return result
+
+        # ── Panel 2: Display Quality ──
+        p2_w = PANEL_W
+        p2_h = 420
+        s2 = pygame.Surface((p2_w, p2_h), pygame.SRCALPHA)
+        pygame.draw.rect(s2, (15, 15, 25, 210), (0, 0, p2_w, p2_h), border_radius=10)
+        pygame.draw.rect(s2, (60, 130, 220, 120), (0, 0, p2_w, p2_h), width=2, border_radius=10)
+        s2.blit(self._font.render("Display Quality", True, (100, 180, 255)), (20, 10))
+        s2.blit(self._font_sm.render("Toggle ON/OFF, then adjust slider", True, (140, 150, 170)), (20, 32))
+        # Render display quality controls onto s2 (offset by 50px for header)
+        # We use a subsurface trick: blit display controls at y offset
+        self._display.render(s2)
+
+        # Panel 3: Sound Output
+        p3_w = PANEL_W
+        p3_h = self._sound.panel_height()
+        s3 = pygame.Surface((p3_w, p3_h), pygame.SRCALPHA)
+        pygame.draw.rect(s3, (15, 15, 25, 210), (0, 0, p3_w, p3_h), border_radius=10)
+        pygame.draw.rect(s3, (60, 130, 220, 120), (0, 0, p3_w, p3_h), width=2, border_radius=10)
+        s3.blit(self._font.render("Sound Output", True, (100, 180, 255)), (20, 10))
+        s3.blit(self._font_sm.render(f"Source: {self._sound.router.capture_device_name[:30]}", True, (140, 150, 170)), (20, 32))
+        self._sound.render(s3)
+        p3_x = PANEL_X + 2 * (PANEL_W + 10)
+        return (s, PANEL_X, PANEL_Y, PANEL_W, p1_h), (s2, PANEL_X + PANEL_W + 10, PANEL_Y, p2_w, p2_h), (s3, p3_x, PANEL_Y, p3_w, p3_h)
