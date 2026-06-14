@@ -38,6 +38,7 @@ class MultiAudioRouter:
         self._running = False
         self._pyaudio = None
         self._capture_stream = None
+        self._capture_thread = None
         self._output_streams = {}
         self._device_queues = {}
         self._lock = threading.Lock()
@@ -50,7 +51,7 @@ class MultiAudioRouter:
         self.active = False
         self._source_muted = False
         self._blocksize = getattr(config, "AUDIO_BUFFER_FRAMES", 1024)
-        self._capture_blocksize = self._blocksize * 4  # larger blocks = fewer callbacks
+        self._capture_blocksize = self._blocksize  # larger blocks = fewer callbacks
         if HAS_SD:
             self._detect_devices()
 
@@ -204,18 +205,6 @@ class MultiAudioRouter:
             try:
                 self._pyaudio = pyaudio.PyAudio()
 
-                def pa_cb(in_data, frame_count, time_info, status):
-                    chunk = np.frombuffer(in_data, dtype=np.float32)
-                    if self._capture_channels > 1:
-                        chunk = chunk.reshape(-1, self._capture_channels)
-                    else:
-                        chunk = chunk.reshape(-1, 1)
-                    ts = time.monotonic()
-                    with self._lock:
-                        for dq in self._device_queues.values():
-                            dq.append((ts, chunk))
-                    return (None, pyaudio.paContinue)
-
                 self._capture_stream = self._pyaudio.open(
                     format=pyaudio.paFloat32,
                     channels=self._capture_channels,
@@ -223,10 +212,11 @@ class MultiAudioRouter:
                     input=True,
                     input_device_index=self._pa_loopback_index,
                     frames_per_buffer=self._capture_blocksize,
-                    stream_callback=pa_cb,
                 )
                 self._capture_stream.start_stream()
                 self._running = True
+                self._capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
+                self._capture_thread.start()
                 self.active = True
                 print(f"  Audio: Capturing {self._capture_sr}Hz via WASAPI loopback")
                 if self._capture_sr > 96000:
@@ -246,9 +236,8 @@ class MultiAudioRouter:
                 def sd_cb(indata, frames, ti, status):
                     chunk = indata[:, :ch].copy()
                     ts = time.monotonic()
-                    with self._lock:
-                        for dq in self._device_queues.values():
-                            dq.append((ts, chunk))
+                    for dq in list(self._device_queues.values()):
+                        dq.append((ts, chunk))
 
                 self._capture_stream = sd.InputStream(
                     device=self._sd_capture_id, samplerate=self._capture_sr,
@@ -264,6 +253,27 @@ class MultiAudioRouter:
 
         self.active = False
         return False
+
+    def _capture_loop(self):
+        bs = self._capture_blocksize
+        while self._running:
+            try:
+                avail = self._capture_stream.get_read_available()
+                if avail < bs:
+                    time.sleep(0.002)
+                    continue
+                raw = self._capture_stream.read(bs, exception_on_overflow=False)
+                chunk = np.frombuffer(raw, dtype=np.float32)
+                if self._capture_channels > 1:
+                    chunk = chunk.reshape(-1, self._capture_channels)
+                else:
+                    chunk = chunk.reshape(-1, 1)
+                ts = time.monotonic()
+                for dq in list(self._device_queues.values()):
+                    dq.append((ts, chunk))
+            except Exception:
+                if self._running:
+                    time.sleep(0.1)
 
     def stop(self):
         """Stop all audio streams."""
@@ -287,6 +297,9 @@ class MultiAudioRouter:
             except:
                 pass
         self._capture_stream = None
+        if self._capture_thread:
+            self._capture_thread.join(timeout=2.0)
+            self._capture_thread = None
         if self._pyaudio:
             try:
                 self._pyaudio.terminate()
@@ -367,16 +380,15 @@ class MultiAudioRouter:
             needed = int(frames * cap_sr / out_sr) + 1 if cap_sr != out_sr else frames
             chunks = []
             total = 0
-            with self._lock:
-                dq = self._device_queues.get(device_id)
-                if dq:
-                    while total < needed and len(dq) > 0:
-                        ts, c = dq[0]
-                        if now - ts < delay:
-                            break
-                        dq.popleft()
-                        chunks.append(c)
-                        total += c.shape[0]
+            dq = self._device_queues.get(device_id)
+            if dq:
+                while total < needed and len(dq) > 0:
+                    ts, c = dq[0]
+                    if now - ts < delay:
+                        break
+                    dq.popleft()
+                    chunks.append(c)
+                    total += c.shape[0]
             if chunks:
                 data = np.concatenate(chunks) if len(chunks) > 1 else chunks[0]
                 # Resample using soxr (C-level, GIL-released, 50x faster than scipy)
