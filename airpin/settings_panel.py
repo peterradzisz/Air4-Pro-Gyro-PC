@@ -29,7 +29,7 @@ PRESETS = {
         "deadzone": 0.04,
         "gain": 0.87,
         "decay": 0.997,
-        "edge_zoom": 0.0,
+        "edge_zoom": 0.2,
         "snap_speed": 2.5,
     },
     "games": {
