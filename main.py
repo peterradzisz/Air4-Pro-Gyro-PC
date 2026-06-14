@@ -291,8 +291,8 @@ def main():
     print("  Left     Add display L   Right  Add display R")
     print("  +/-      Zoom            0   Zoom reset")
     print("  H        HUD            Shift+F  Focus game")
-    print("  S        Settings panel")
-    print("  Q        Quit (removes virtual displays)")
+    print("  S        Settings         C   Cursor on/off")
+    print("  X        Screenshot      Q   Quit")
     print()
 
     # First-run welcome toast
