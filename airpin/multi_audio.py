@@ -45,6 +45,7 @@ class MultiAudioRouter:
         self.active = False
         self._source_muted = False
         self._blocksize = getattr(config, "AUDIO_BUFFER_FRAMES", 1024)
+        self._capture_blocksize = self._blocksize * 4  # larger blocks = fewer callbacks
         if HAS_SD:
             self._detect_devices()
 
@@ -204,7 +205,7 @@ class MultiAudioRouter:
                     rate=self._capture_sr,
                     input=True,
                     input_device_index=self._pa_loopback_index,
-                    frames_per_buffer=self._blocksize,
+                    frames_per_buffer=self._capture_blocksize,
                     stream_callback=pa_cb,
                 )
                 self._capture_stream.start_stream()
@@ -358,11 +359,18 @@ class MultiAudioRouter:
                         total += c.shape[0]
             if chunks:
                 data = np.concatenate(chunks) if len(chunks) > 1 else chunks[0]
-                # Resample if capture and output rates differ
+                # High-quality resampling (scipy polyphase with anti-aliasing)
                 if cap_sr != out_sr:
-                    n_out = max(1, int(data.shape[0] * out_sr / cap_sr))
-                    idx = np.linspace(0, data.shape[0] - 1, n_out).astype(np.intp)
-                    data = data[idx]
+                    try:
+                        from scipy.signal import resample_poly
+                        from math import gcd
+                        g = gcd(cap_sr, out_sr)
+                        data = resample_poly(data, out_sr // g, cap_sr // g, axis=0).astype(np.float32)
+                    except ImportError:
+                        ratio = cap_sr // out_sr
+                        if ratio > 1 and cap_sr % out_sr == 0:
+                            data = data[:len(data)//ratio*ratio].reshape(-1, ratio, data.shape[1]).mean(axis=0)
+                            data = data.reshape(-1, data.shape[-1])
                 n = min(frames, data.shape[0])
                 co = min(channels, data.shape[1])
                 outdata[:n, :co] = data[:n, :co] * vol
