@@ -27,7 +27,7 @@ DEFAULTS = {
     "sensitivity":         0.5,   # 0.1 (very little) → 1.5 (very responsive)
     "invert_yaw":          False,
     "invert_pitch":        False,
-    "pitch_enabled":       True,
+    "pitch_enabled":       False,
     "yaw_decay":           1.0,
     # Movement detection (smooth follow)
     "move_start_rad":      0.052,  # ~3 deg/s — threshold to start tracking
@@ -41,9 +41,9 @@ DEFAULTS = {
     # Tracking sliders (Movies preset as default)
     "yaw_range":            1.0,
     "pitch_range":          1.0,
-    "deadzone":             0.035,
+    "deadzone":             0.05,
     "gain":                 0.87,
-    "decay":                1.0,
+    "decay":                0.997,
     "edge_zoom":            0.0,
     "snap_speed":           2.5,
     # USB reset
