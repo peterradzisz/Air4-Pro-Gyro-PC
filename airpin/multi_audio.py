@@ -18,6 +18,7 @@ except ImportError:
     HAS_SD = False
 
 import config
+from airpin.endpoint_mute import set_mute, get_mute
 
 
 class MultiAudioRouter:
@@ -35,6 +36,7 @@ class MultiAudioRouter:
         self._capture_device_name = ""
         self._capture_method = ""
         self.active = False
+        self._source_muted = False
         self._samplerate = getattr(config, "AUDIO_SAMPLE_RATE", 48000)
         self._blocksize = getattr(config, "AUDIO_BUFFER_FRAMES", 1024)
         if HAS_SD:
@@ -47,6 +49,21 @@ class MultiAudioRouter:
     @property
     def capture_available(self):
         return HAS_SD and self._capture_device_id is not None
+
+    @property
+    def source_muted(self):
+        return self._source_muted
+
+    def toggle_source_mute(self):
+        """Toggle mute on the default Windows audio endpoint.
+        WASAPI loopback captures before the mute, so routing still works."""
+        self._source_muted = not self._source_muted
+        ok = set_mute(self._source_muted)
+        if ok:
+            print(f"  Audio: Source device {'MUTED' if self._source_muted else 'UNMUTED'}")
+        else:
+            self._source_muted = not self._source_muted  # revert on failure
+        return self._source_muted
 
     def _find_wasapi_output(self):
         """Find the default WASAPI output device for loopback capture."""
@@ -97,25 +114,42 @@ class MultiAudioRouter:
                 self._capture_method = "stereo_mix"
                 capture_ids.add(best)
 
-        # Only show WASAPI and WDM-KS (skip legacy MME/DirectSound duplicates)
+        # Dedup: WASAPI first, then WDM-KS for devices not in WASAPI
+        # Skip MME/DirectSound (legacy duplicates of the same hardware)
         hostapis = sd.query_hostapis()
-        preferred_apis = set()
+        api_priority = []
         for ai, api in enumerate(hostapis):
-            if "WASAPI" in api["name"] or "WDM" in api["name"]:
-                preferred_apis.add(ai)
-        if not preferred_apis:
-            preferred_apis = set(range(len(hostapis)))
+            n = api["name"]
+            if "WASAPI" in n:
+                api_priority.append((ai, 0))
+            elif "WDM" in n:
+                api_priority.append((ai, 1))
+        if not api_priority:
+            api_priority = [(ai, 0) for ai in range(len(hostapis))]
+        api_priority.sort(key=lambda x: x[1])
+        preferred_apis = {ai for ai, _ in api_priority}
+
+        def _is_valid(name):
+            nl = name.lower()
+            if "sound mapper" in nl or "primary sound" in nl:
+                return False
+            if not name.strip() or "()" in name or name.strip() == "Output":
+                return False
+            return True
+
+        def _brand(name):
+            return name.split()[0].lower() if name.split() else name.lower()
+
         seen_brands = set()
-        for i, d in enumerate(devices):
-            if d["max_output_channels"] > 0 and i not in capture_ids:
-                if d["hostapi"] not in preferred_apis:
+        for ai, _ in api_priority:
+            for i, d in enumerate(devices):
+                if d["hostapi"] != ai:
                     continue
-                nl = d["name"].lower()
-                if "sound mapper" in nl or "primary sound" in nl:
+                if d["max_output_channels"] <= 0 or i in capture_ids:
                     continue
-                if not d["name"].strip() or "()" in d["name"] or d["name"].strip() == "Output":
+                if not _is_valid(d["name"]):
                     continue
-                brand = d["name"].split()[0].lower() if d["name"].split() else nl
+                brand = _brand(d["name"])
                 if brand in seen_brands:
                     continue
                 seen_brands.add(brand)

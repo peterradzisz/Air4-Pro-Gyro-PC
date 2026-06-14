@@ -13,7 +13,7 @@ TOGGLE_W = 70
 TOGGLE_H = 24
 ROW_H = 70
 MAX_DELAY_MS = 500
-START_Y = 50
+START_Y = 85
 
 
 class SoundPanel:
@@ -51,6 +51,10 @@ class SoundPanel:
     def handle_mouse(self, mx, my, clicked):
         """Handle mouse in sound panel coords."""
         self._refresh()
+        # Mute source button (top of panel)
+        if 280 <= mx <= 380 and 38 <= my <= 62 and clicked:
+            self._router.toggle_source_mute()
+            return True
         for i, dev in enumerate(self._devices):
             y = START_Y + i * ROW_H
             toggle_y = y - 2
@@ -97,6 +101,15 @@ class SoundPanel:
         """Draw sound panel onto given surface."""
         self._ensure_font()
         self._refresh()
+        # Mute source button
+        muted = self._router.source_muted
+        mc = (100, 50, 50, 200) if not muted else (50, 100, 50, 200)
+        pygame.draw.rect(surface, mc, (280, 38, 100, 24), border_radius=6)
+        mt = "UNMUTE" if muted else "MUTE"
+        ms = self._font_sm.render(mt, True, (220, 220, 220))
+        surface.blit(ms, (280 + (100 - ms.get_width()) // 2, 38 + (24 - ms.get_height()) // 2))
+        if muted:
+            surface.blit(self._font_sm.render("(glasses speaker off)", True, (180, 160, 100)), (20, 64))
         for i, dev in enumerate(self._devices):
             y = START_Y + i * ROW_H
             enabled = dev["enabled"]
