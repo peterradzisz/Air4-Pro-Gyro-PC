@@ -564,7 +564,7 @@ def main():
                 renderer.draw_cursor(0, 0, 1.0)
             else:
                 # Settings closed: cursor tracks with shifted/zoomed image
-                renderer.draw_cursor(pixel_offset_x, pixel_offset_y, display_zoom)
+                renderer.draw_cursor(pixel_offset_x, pixel_offset_y, zoom)
         # ── HUD ──
         if show_hud:
             n_vdd = len(vdd.get_displays()) if vdd else 0
