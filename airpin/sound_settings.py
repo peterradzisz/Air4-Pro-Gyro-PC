@@ -102,8 +102,12 @@ class SoundPanel:
             enabled = dev["enabled"]
             vol = dev["volume"]
             # Device name
-            name = dev["name"][:35]
-            color = (200, 220, 255) if enabled else (100, 110, 130)
+            is_src = dev.get("is_source", False)
+            name = dev["name"][:30] + (" (source)" if is_src else "")
+            if is_src:
+                color = (180, 160, 100) if enabled else (90, 80, 50)
+            else:
+                color = (200, 220, 255) if enabled else (100, 110, 130)
             surface.blit(self._font_sm.render(name, True, color), (20, y - 22))
             # ON/OFF toggle
             toggle_y = y - 2

@@ -105,16 +105,15 @@ class MultiAudioRouter:
                 preferred_apis.add(ai)
         if not preferred_apis:
             preferred_apis = set(range(len(hostapis)))
-        capture_brand = self._capture_device_name.split()[0].lower() if self._capture_device_name else ""
         seen_brands = set()
-        if capture_brand:
-            seen_brands.add(capture_brand)
         for i, d in enumerate(devices):
             if d["max_output_channels"] > 0 and i not in capture_ids:
                 if d["hostapi"] not in preferred_apis:
                     continue
                 nl = d["name"].lower()
                 if "sound mapper" in nl or "primary sound" in nl:
+                    continue
+                if not d["name"].strip() or "()" in d["name"] or d["name"].strip() == "Output":
                     continue
                 brand = d["name"].split()[0].lower() if d["name"].split() else nl
                 if brand in seen_brands:
@@ -136,6 +135,9 @@ class MultiAudioRouter:
                 "enabled": st.get("enabled", False),
                 "volume": st.get("volume", 0.8),
                 "delay_ms": st.get("delay_ms", 0),
+                "is_source": any(name_part.lower() in d["name"].lower()
+                                  for name_part in self._capture_device_name.split()[:1])
+                              if self._capture_device_name else False,
                 "channels": d["channels"],
                 "sample_rate": d["sample_rate"],
             })
