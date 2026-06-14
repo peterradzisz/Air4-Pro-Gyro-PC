@@ -38,6 +38,8 @@ class MultiAudioRouter:
         self.active = False
         self._source_muted = False
         self._samplerate = getattr(config, "AUDIO_SAMPLE_RATE", 48000)
+        self._capture_sr = 48000
+        self._device_output_sr = {}
         self._blocksize = getattr(config, "AUDIO_BUFFER_FRAMES", 1024)
         if HAS_SD:
             self._detect_devices()
@@ -190,11 +192,12 @@ class MultiAudioRouter:
             di = sd.query_devices(self._capture_device_id)
 
             if self._capture_method == "wasapi_loopback":
-                sr = self._samplerate
+                sr = int(di["default_samplerate"])
                 ch = min(di["max_output_channels"] or 2, 2)
             else:
-                sr = self._samplerate
+                sr = int(di["default_samplerate"])
                 ch = min(di["max_input_channels"], 2)
+            self._capture_sr = sr
 
             def capture_cb(indata, frames, ti, status):
                 chunk = indata[:, :ch].copy()
@@ -249,7 +252,8 @@ class MultiAudioRouter:
     def _start_stereo_mix(self):
         try:
             di = sd.query_devices(self._capture_device_id)
-            sr = self._samplerate
+            sr = int(di["default_samplerate"])
+            self._capture_sr = sr
             ch = min(di["max_input_channels"], 2)
             def cb(indata, frames, ti, status):
                 chunk = indata[:, :ch].copy()
@@ -303,7 +307,8 @@ class MultiAudioRouter:
             try:
                 di = sd.query_devices(device_id)
                 ch = min(di["max_output_channels"], 2)
-                sr = self._samplerate
+                sr = int(di["default_samplerate"])
+                self._device_output_sr[device_id] = sr
                 with self._lock:
                     self._device_queues[device_id] = collections.deque(maxlen=100)
                 cb = self._make_output_cb(device_id, ch)
@@ -327,18 +332,33 @@ class MultiAudioRouter:
         def cb(outdata, frames, ti, status):
             vol = self._device_states[device_id]["volume"]
             delay = self._device_states[device_id].get("delay_ms", 0) / 1000.0
-            chunk = None
             now = time.monotonic()
+            cap_sr = self._capture_sr
+            out_sr = self._device_output_sr.get(device_id, cap_sr)
+            # How many capture-rate samples needed to fill output frames
+            needed = int(frames * cap_sr / out_sr) + 1 if cap_sr != out_sr else frames
+            chunks = []
+            total = 0
             with self._lock:
                 dq = self._device_queues.get(device_id)
-                if dq and len(dq) > 0:
-                    ts, peek = dq[0]
-                    if now - ts >= delay:
-                        _, chunk = dq.popleft()
-            if chunk is not None and len(chunk) > 0:
-                n = min(frames, chunk.shape[0])
-                co = min(channels, chunk.shape[1])
-                outdata[:n, :co] = chunk[:n, :co] * vol
+                if dq:
+                    while total < needed and len(dq) > 0:
+                        ts, c = dq[0]
+                        if now - ts < delay:
+                            break
+                        dq.popleft()
+                        chunks.append(c)
+                        total += c.shape[0]
+            if chunks:
+                data = np.concatenate(chunks) if len(chunks) > 1 else chunks[0]
+                # Resample if capture and output rates differ
+                if cap_sr != out_sr:
+                    n_out = max(1, int(data.shape[0] * out_sr / cap_sr))
+                    idx = np.linspace(0, data.shape[0] - 1, n_out).astype(np.intp)
+                    data = data[idx]
+                n = min(frames, data.shape[0])
+                co = min(channels, data.shape[1])
+                outdata[:n, :co] = data[:n, :co] * vol
                 if n < frames: outdata[n:] = 0
                 if co < outdata.shape[1]: outdata[:, co:] = 0
             else:
