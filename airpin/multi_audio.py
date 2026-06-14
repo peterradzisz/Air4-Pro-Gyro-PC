@@ -85,36 +85,38 @@ class MultiAudioRouter:
         return None, None
 
     def _detect_devices(self):
-        """Set up capture via WASAPI loopback, enumerate output devices."""
+        """Set up capture via Stereo Mix (primary), enumerate output devices."""
         devices = sd.query_devices()
         capture_ids = set()
 
-        wasapi_dev, wasapi_info = self._find_wasapi_output()
-        if wasapi_dev is not None:
-            self._capture_device_id = wasapi_dev
-            self._capture_device_name = wasapi_info["name"]
-            self._capture_method = "wasapi_loopback"
-            capture_ids.add(wasapi_dev)
+        # Primary: Stereo Mix (captures from default playback endpoint)
+        _KW = ["stereo mix", "wave out", "what u hear", "mix"]
+        best = None
+        best_score = -1
+        for i, d in enumerate(devices):
+            if d["max_input_channels"] <= 0:
+                continue
+            nl = d["name"].lower()
+            for kw in _KW:
+                if kw in nl:
+                    if len(kw) > best_score:
+                        best_score = len(kw)
+                        best = i
+                    break
+        if best is not None:
+            self._capture_device_id = best
+            self._capture_device_name = devices[best]["name"]
+            self._capture_method = "stereo_mix"
+            capture_ids.add(best)
 
+        # Fallback: WASAPI loopback (if sounddevice supports it)
         if self._capture_device_id is None:
-            _KW = ["stereo mix", "wave out", "what u hear", "loopback", "mix"]
-            best = None
-            best_score = -1
-            for i, d in enumerate(devices):
-                if d["max_input_channels"] <= 0:
-                    continue
-                nl = d["name"].lower()
-                for kw in _KW:
-                    if kw in nl:
-                        if len(kw) > best_score:
-                            best_score = len(kw)
-                            best = i
-                        break
-            if best is not None:
-                self._capture_device_id = best
-                self._capture_device_name = devices[best]["name"]
-                self._capture_method = "stereo_mix"
-                capture_ids.add(best)
+            wasapi_dev, wasapi_info = self._find_wasapi_output()
+            if wasapi_dev is not None:
+                self._capture_device_id = wasapi_dev
+                self._capture_device_name = wasapi_info["name"]
+                self._capture_method = "wasapi_loopback"
+                capture_ids.add(wasapi_dev)
 
         # Dedup: WASAPI first, then WDM-KS for devices not in WASAPI
         # Skip MME/DirectSound (legacy duplicates of the same hardware)
