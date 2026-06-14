@@ -38,7 +38,7 @@ PRESETS = {
         "deadzone": 0.04,
         "gain": 1.0,
         "decay": 0.999,
-        "edge_zoom": 0.3,
+        "edge_zoom": 0.0,
         "snap_speed": 4.6,
     },
 }
