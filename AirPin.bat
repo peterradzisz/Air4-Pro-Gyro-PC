@@ -1,3 +1,3 @@
 @echo off
-cd /d "C:\VR AR\AirPin_ext"
+cd /d "C:\VR AR\AirPin"
 python main.py %*
