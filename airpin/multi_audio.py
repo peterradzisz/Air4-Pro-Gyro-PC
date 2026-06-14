@@ -1,15 +1,21 @@
 """
 Multi-device audio router for AirPin.
 
-Captures system audio via WASAPI loopback (captures whatever the default
-output device is playing) and routes to multiple output devices.
-Falls back to Stereo Mix if WASAPI loopback is unavailable.
+Captures system audio via PyAudioWPatch WASAPI loopback (works on all
+Windows PCs without Stereo Mix). Routes to multiple output devices via
+sounddevice. Handles sample rate differences with numpy resampling.
 """
 
 import threading
-import time
 import collections
+import time
 import numpy as np
+
+try:
+    import pyaudiowpatch as pyaudio
+    HAS_PA = True
+except ImportError:
+    HAS_PA = False
 
 try:
     import sounddevice as sd
@@ -18,28 +24,26 @@ except ImportError:
     HAS_SD = False
 
 import config
-from airpin.endpoint_mute import set_mute, get_mute
 
 
 class MultiAudioRouter:
-    """Captures system audio and routes to multiple output devices."""
+    """Captures system audio via WASAPI loopback, routes to output devices."""
 
     def __init__(self):
         self._running = False
+        self._pyaudio = None
         self._capture_stream = None
         self._output_streams = {}
         self._device_queues = {}
         self._lock = threading.Lock()
         self._devices = []
         self._device_states = {}
-        self._capture_device_id = None
         self._capture_device_name = ""
-        self._capture_method = ""
+        self._capture_sr = 48000
+        self._capture_channels = 2
+        self._device_output_sr = {}
         self.active = False
         self._source_muted = False
-        self._samplerate = getattr(config, "AUDIO_SAMPLE_RATE", 48000)
-        self._capture_sr = 48000
-        self._device_output_sr = {}
         self._blocksize = getattr(config, "AUDIO_BUFFER_FRAMES", 1024)
         if HAS_SD:
             self._detect_devices()
@@ -50,117 +54,108 @@ class MultiAudioRouter:
 
     @property
     def capture_available(self):
-        return HAS_SD and self._capture_device_id is not None
+        return HAS_PA or HAS_SD
 
     @property
     def source_muted(self):
         return self._source_muted
 
     def toggle_source_mute(self):
-        """Toggle mute on the default Windows audio endpoint.
-        WASAPI loopback captures before the mute, so routing still works."""
+        """Toggle mute on the default Windows audio endpoint."""
         self._source_muted = not self._source_muted
-        ok = set_mute(self._source_muted)
+        try:
+            from airpin.endpoint_mute import set_mute
+            ok = set_mute(self._source_muted)
+        except Exception:
+            ok = True
         if ok:
-            print(f"  Audio: Source device {'MUTED' if self._source_muted else 'UNMUTED'}")
+            print(f"  Audio: Source {'MUTED' if self._source_muted else 'UNMUTED'}")
         else:
-            self._source_muted = not self._source_muted  # revert on failure
+            self._source_muted = not self._source_muted
         return self._source_muted
 
-    def _find_wasapi_output(self):
-        """Find the default WASAPI output device for loopback capture."""
-        try:
-            hostapis = sd.query_hostapis()
-            for api in hostapis:
-                if "WASAPI" in api["name"]:
-                    dev_idx = api.get("default_output_device", -1)
-                    if dev_idx is not None and dev_idx >= 0:
-                        return dev_idx, sd.query_devices(dev_idx)
-                    for di in api["devices"]:
-                        info = sd.query_devices(di)
-                        if info["max_output_channels"] > 0:
-                            return di, info
-        except Exception:
-            pass
-        return None, None
-
     def _detect_devices(self):
-        """Set up capture via Stereo Mix (primary), enumerate output devices."""
-        devices = sd.query_devices()
+        """Auto-detect capture source and enumerate output devices."""
         capture_ids = set()
 
-        # Primary: Stereo Mix (captures from default playback endpoint)
-        _KW = ["stereo mix", "wave out", "what u hear", "mix"]
-        best = None
-        best_score = -1
-        for i, d in enumerate(devices):
-            if d["max_input_channels"] <= 0:
-                continue
-            nl = d["name"].lower()
-            for kw in _KW:
-                if kw in nl:
-                    if len(kw) > best_score:
-                        best_score = len(kw)
+        # --- Capture: PyAudioWPatch WASAPI loopback (universal) ---
+        if HAS_PA:
+            try:
+                pa = pyaudio.PyAudio()
+                loopback = pa.get_default_wasapi_loopback()
+                self._capture_device_name = loopback["name"].replace(" [Loopback]", "")
+                self._capture_sr = int(loopback["defaultSampleRate"])
+                self._capture_channels = min(int(loopback["maxInputChannels"]), 2)
+                self._pa_loopback_index = loopback["index"]
+                pa.terminate()
+                print(f"  Audio: WASAPI loopback = {self._capture_device_name} ({self._capture_sr}Hz)")
+            except Exception as e:
+                print(f"  Audio: WASAPI loopback failed: {e}")
+
+        # --- Capture fallback: Stereo Mix via sounddevice ---
+        if not self._capture_device_name and HAS_SD:
+            _KW = ["stereo mix", "wave out", "what u hear", "mix"]
+            devices = sd.query_devices()
+            best = None
+            for i, d in enumerate(devices):
+                if d["max_input_channels"] <= 0:
+                    continue
+                nl = d["name"].lower()
+                for kw in _KW:
+                    if kw in nl:
                         best = i
+                        break
+                if best is not None:
                     break
-        if best is not None:
-            self._capture_device_id = best
-            self._capture_device_name = devices[best]["name"]
-            self._capture_method = "stereo_mix"
-            capture_ids.add(best)
+            if best is not None:
+                self._capture_device_name = devices[best]["name"]
+                self._capture_sr = int(devices[best]["default_samplerate"])
+                self._capture_channels = min(devices[best]["max_input_channels"], 2)
+                self._sd_capture_id = best
+                capture_ids.add(best)
+                print(f"  Audio: Stereo Mix fallback = {self._capture_device_name}")
 
-        # Fallback: WASAPI loopback (if sounddevice supports it)
-        if self._capture_device_id is None:
-            wasapi_dev, wasapi_info = self._find_wasapi_output()
-            if wasapi_dev is not None:
-                self._capture_device_id = wasapi_dev
-                self._capture_device_name = wasapi_info["name"]
-                self._capture_method = "wasapi_loopback"
-                capture_ids.add(wasapi_dev)
+        # --- Output devices: WASAPI only (most reliable) ---
+        if not HAS_SD:
+            return
 
-        # Dedup: WASAPI first, then WDM-KS for devices not in WASAPI
-        # Skip MME/DirectSound (legacy duplicates of the same hardware)
+        devices = sd.query_devices()
         hostapis = sd.query_hostapis()
-        api_priority = []
+        api_names = {i: a["name"] for i, a in enumerate(hostapis)}
+
+        # Prefer WASAPI, then WDM-KS, skip MME/DirectSound
+        api_order = []
         for ai, api in enumerate(hostapis):
             n = api["name"]
             if "WASAPI" in n:
-                api_priority.append((ai, 0))
+                api_order.append((ai, 0))
             elif "WDM" in n:
-                api_priority.append((ai, 1))
-        if not api_priority:
-            api_priority = [(ai, 0) for ai in range(len(hostapis))]
-        api_priority.sort(key=lambda x: x[1])
-        preferred_apis = {ai for ai, _ in api_priority}
-
-        def _is_valid(name):
-            nl = name.lower()
-            if "sound mapper" in nl or "primary sound" in nl:
-                return False
-            if not name.strip() or "()" in name or name.strip() == "Output":
-                return False
-            return True
-
-        def _brand(name):
-            return name.split()[0].lower() if name.split() else name.lower()
+                api_order.append((ai, 1))
+        if not api_order:
+            api_order = [(ai, 0) for ai in range(len(hostapis))]
+        api_order.sort(key=lambda x: x[1])
 
         seen_brands = set()
-        for ai, _ in api_priority:
+        for ai, _ in api_order:
             for i, d in enumerate(devices):
-                if d["hostapi"] != ai:
+                if d["hostapi"] != ai or d["max_output_channels"] <= 0:
                     continue
-                if d["max_output_channels"] <= 0 or i in capture_ids:
+                if i in capture_ids:
                     continue
-                if not _is_valid(d["name"]):
+                name = d["name"]
+                nl = name.lower()
+                if "sound mapper" in nl or "primary sound" in nl:
                     continue
-                brand = _brand(d["name"])
+                if not name.strip() or "()" in name:
+                    continue
+                brand = name.split()[0].lower() if name.split() else nl
                 if brand in seen_brands:
                     continue
                 seen_brands.add(brand)
                 self._devices.append({
-                    "id": i, "name": d["name"],
+                    "id": i, "name": name,
                     "channels": min(d["max_output_channels"], 2),
-                    "sample_rate": self._samplerate,
+                    "sample_rate": int(d["default_samplerate"]),
                 })
                 self._device_states[i] = {"enabled": False, "volume": 0.8, "delay_ms": 0}
 
@@ -173,132 +168,134 @@ class MultiAudioRouter:
                 "enabled": st.get("enabled", False),
                 "volume": st.get("volume", 0.8),
                 "delay_ms": st.get("delay_ms", 0),
-                "is_source": any(name_part.lower() in d["name"].lower()
-                                  for name_part in self._capture_device_name.split()[:1])
-                              if self._capture_device_name else False,
                 "channels": d["channels"],
                 "sample_rate": d["sample_rate"],
             })
         return result
 
     def start(self):
-        if not HAS_SD:
-            print("  Audio: sounddevice not installed")
-            return False
-        if self._capture_device_id is None:
-            print("  Audio: No capture device available")
+        """Start system audio capture."""
+        if not self._capture_device_name:
+            print("  Audio: No capture method available")
             return False
         if self._running:
             return True
-        try:
-            di = sd.query_devices(self._capture_device_id)
 
-            if self._capture_method == "wasapi_loopback":
-                sr = int(di["default_samplerate"])
-                ch = min(di["max_output_channels"] or 2, 2)
-            else:
-                sr = int(di["default_samplerate"])
-                ch = min(di["max_input_channels"], 2)
-            self._capture_sr = sr
+        # PyAudioWPatch capture
+        if HAS_PA and hasattr(self, '_pa_loopback_index'):
+            try:
+                self._pyaudio = pyaudio.PyAudio()
 
-            def capture_cb(indata, frames, ti, status):
-                chunk = indata[:, :ch].copy()
-                ts = time.monotonic()
-                with self._lock:
-                    for dq in self._device_queues.values():
-                        dq.append((ts, chunk))
+                def pa_cb(in_data, frame_count, time_info, status):
+                    chunk = np.frombuffer(in_data, dtype=np.float32)
+                    if self._capture_channels > 1:
+                        chunk = chunk.reshape(-1, self._capture_channels)
+                    else:
+                        chunk = chunk.reshape(-1, 1)
+                    ts = time.monotonic()
+                    with self._lock:
+                        for dq in self._device_queues.values():
+                            dq.append((ts, chunk))
+                    return (None, pyaudio.paContinue)
 
-            if self._capture_method == "wasapi_loopback":
+                self._capture_stream = self._pyaudio.open(
+                    format=pyaudio.paFloat32,
+                    channels=self._capture_channels,
+                    rate=self._capture_sr,
+                    input=True,
+                    input_device_index=self._pa_loopback_index,
+                    frames_per_buffer=self._blocksize,
+                    stream_callback=pa_cb,
+                )
+                self._capture_stream.start_stream()
+                self._running = True
+                self.active = True
+                print(f"  Audio: Capturing {self._capture_sr}Hz via WASAPI loopback")
+                return True
+            except Exception as e:
+                print(f"  Audio: PyAudio capture failed: {e}")
+                if self._pyaudio:
+                    self._pyaudio.terminate()
+                    self._pyaudio = None
+
+        # Stereo Mix fallback
+        if HAS_SD and hasattr(self, '_sd_capture_id'):
+            try:
+                ch = self._capture_channels
+                def sd_cb(indata, frames, ti, status):
+                    chunk = indata[:, :ch].copy()
+                    ts = time.monotonic()
+                    with self._lock:
+                        for dq in self._device_queues.values():
+                            dq.append((ts, chunk))
+
                 self._capture_stream = sd.InputStream(
-                    device=self._capture_device_id, samplerate=sr,
-                    channels=ch, dtype="float32", callback=capture_cb,
-                    blocksize=self._blocksize,
-                    extra_settings=sd.WasapiSettings(loopback=True))
-            else:
-                self._capture_stream = sd.InputStream(
-                    device=self._capture_device_id, samplerate=sr,
-                    channels=ch, dtype="float32", callback=capture_cb,
+                    device=self._sd_capture_id, samplerate=self._capture_sr,
+                    channels=ch, dtype="float32", callback=sd_cb,
                     blocksize=self._blocksize)
+                self._capture_stream.start()
+                self._running = True
+                self.active = True
+                print(f"  Audio: Capturing {self._capture_sr}Hz via Stereo Mix")
+                return True
+            except Exception as e:
+                print(f"  Audio: Stereo Mix failed: {e}")
 
-            self._capture_stream.start()
-            self._running = True
-            self.active = True
-            print(f"  Audio: Capturing via {self._capture_method} from {self._capture_device_name} at {sr}Hz")
-            return True
-        except Exception as e:
-            print(f"  Audio: Capture failed ({self._capture_method}): {e}")
-            if self._capture_method == "wasapi_loopback":
-                print("  Audio: Trying Stereo Mix fallback...")
-                self._capture_method = ""
-                self._capture_device_id = None
-                self._detect_stereo_mix()
-                if self._capture_device_id is not None:
-                    return self._start_stereo_mix()
-            self.active = False
-            return False
-
-    def _detect_stereo_mix(self):
-        _KW = ["stereo mix", "wave out", "what u hear", "mix"]
-        devices = sd.query_devices()
-        for i, d in enumerate(devices):
-            if d["max_input_channels"] <= 0:
-                continue
-            nl = d["name"].lower()
-            for kw in _KW:
-                if kw in nl:
-                    self._capture_device_id = i
-                    self._capture_device_name = devices[i]["name"]
-                    self._capture_method = "stereo_mix"
-                    return
-
-    def _start_stereo_mix(self):
-        try:
-            di = sd.query_devices(self._capture_device_id)
-            sr = int(di["default_samplerate"])
-            self._capture_sr = sr
-            ch = min(di["max_input_channels"], 2)
-            def cb(indata, frames, ti, status):
-                chunk = indata[:, :ch].copy()
-                ts = time.monotonic()
-                with self._lock:
-                    for dq in self._device_queues.values():
-                        dq.append((ts, chunk))
-            self._capture_stream = sd.InputStream(
-                device=self._capture_device_id, samplerate=sr,
-                channels=ch, dtype="float32", callback=cb,
-                blocksize=self._blocksize)
-            self._capture_stream.start()
-            self._running = True
-            self.active = True
-            print(f"  Audio: Stereo Mix OK: {self._capture_device_name}")
-            return True
-        except Exception as e:
-            print(f"  Audio: Stereo Mix failed: {e}")
-            self.active = False
-            return False
+        self.active = False
+        return False
 
     def stop(self):
-        self._running = False
-        for s in [self._capture_stream] + list(self._output_streams.values()):
+        """Stop all audio streams."""
+        if self._source_muted:
             try:
-                if s: s.close()
-            except Exception:
+                from airpin.endpoint_mute import set_mute
+                set_mute(False)
+            except:
+                pass
+            self._source_muted = False
+        self._running = False
+
+        # Close capture
+        if self._capture_stream:
+            try:
+                if HAS_PA and isinstance(self._capture_stream, object) and hasattr(self._capture_stream, 'stop_stream'):
+                    self._capture_stream.stop_stream()
+                    self._capture_stream.close()
+                else:
+                    self._capture_stream.close()
+            except:
                 pass
         self._capture_stream = None
+        if self._pyaudio:
+            try:
+                self._pyaudio.terminate()
+            except:
+                pass
+            self._pyaudio = None
+
+        # Close outputs
+        for s in list(self._output_streams.values()):
+            try:
+                s.close()
+            except:
+                pass
         self._output_streams.clear()
         with self._lock:
             self._device_queues.clear()
         self.active = False
 
     def toggle_device(self, device_id):
+        """Toggle output device on/off."""
         if device_id not in self._device_states:
             return False
         st = self._device_states[device_id]
         if st["enabled"]:
             st["enabled"] = False
             if device_id in self._output_streams:
-                try: self._output_streams[device_id].close()
-                except Exception: pass
+                try:
+                    self._output_streams[device_id].close()
+                except:
+                    pass
                 del self._output_streams[device_id]
             with self._lock:
                 if device_id in self._device_queues:
@@ -320,7 +317,8 @@ class MultiAudioRouter:
                 stream.start()
                 self._output_streams[device_id] = stream
                 st["enabled"] = True
-                print(f"  Audio: Output -> [{device_id}] {di['name']} at {sr}Hz (capture: {self._running})")
+                cap_sr = self._capture_sr
+                print(f"  Audio: Output -> [{device_id}] {di['name'][:30]} {sr}Hz (capture: {cap_sr}Hz)")
                 return True
             except Exception as e:
                 print(f"  Audio: Device {device_id} failed: {e}")
@@ -330,13 +328,20 @@ class MultiAudioRouter:
         if device_id in self._device_states:
             self._device_states[device_id]["volume"] = max(0.0, min(1.0, volume))
 
+    def set_delay(self, device_id, delay_ms):
+        """Set output delay 0-500ms."""
+        if device_id in self._device_states:
+            self._device_states[device_id]["delay_ms"] = max(0, min(500, int(delay_ms)))
+
     def _make_output_cb(self, device_id, channels):
+        """Create output callback with resampling and delay support."""
         def cb(outdata, frames, ti, status):
             vol = self._device_states[device_id]["volume"]
             delay = self._device_states[device_id].get("delay_ms", 0) / 1000.0
             now = time.monotonic()
             cap_sr = self._capture_sr
             out_sr = self._device_output_sr.get(device_id, cap_sr)
+
             # How many capture-rate samples needed to fill output frames
             needed = int(frames * cap_sr / out_sr) + 1 if cap_sr != out_sr else frames
             chunks = []
@@ -361,8 +366,10 @@ class MultiAudioRouter:
                 n = min(frames, data.shape[0])
                 co = min(channels, data.shape[1])
                 outdata[:n, :co] = data[:n, :co] * vol
-                if n < frames: outdata[n:] = 0
-                if co < outdata.shape[1]: outdata[:, co:] = 0
+                if n < frames:
+                    outdata[n:] = 0
+                if co < outdata.shape[1]:
+                    outdata[:, co:] = 0
             else:
                 outdata.fill(0)
         return cb
