@@ -420,6 +420,9 @@ def main():
             else:
                 print("  Cursor on glasses: OFF (no cursor on glasses)")
             log.info(f"Show GL cursor: {not current}")
+        if 'screenshot' in triggered:
+            _screenshot_req = True
+            log.info("Screenshot requested")
 
         # ── Add virtual displays ──
         if ('panel_left' in triggered or 'panel_right' in triggered) and vdd:
