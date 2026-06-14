@@ -593,6 +593,8 @@ def main():
             pt = ctypes.wintypes.POINT()
             user32.GetCursorPos(ctypes.byref(pt))
             clicked = mouse_down_now and not _prev_mouse_down  # edge detection
+            if clicked:
+                print(f'  DBG CLICK screen=({pt.x},{pt.y}) p1=({p1_mx:.0f},{p1_my:.0f}) p2=({p2_mx:.0f},{p2_my:.0f}) p3=({p3_mx:.0f},{p3_my:.0f})')
 
             # Calculate mouse coords for each panel
             p1_mx = pt.x - renderer.virt_x - PANEL_X
