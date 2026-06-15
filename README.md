@@ -30,7 +30,7 @@ Put on the glasses. See your desktop floating in front of you. Turn your head - 
 - VB-Cable auto-detect for zero-latency sync (see Audio Setup)
 - Works at any sample rate (48kHz recommended)
 
-**Virtual Displays** *(Ctrl+Alt+Left/Right)*
+**Virtual Displays** *(Ctrl+Alt+Left/Right)* ⚠️ *not tested by maintainer*
 - Add virtual screens left/right via Parsec VDD
 - Each display captured and rendered independently
 - Windows manages cursor between displays natively
