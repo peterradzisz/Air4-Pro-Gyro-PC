@@ -187,6 +187,27 @@ Now both play at the same latency. No echo.
 
 ---
 
+## 3D games (optional)
+
+AirPin shows a 2D screen. For real 3D, you need a tool that renders the game twice. The good news: they just work with AirPin. Enable 3D in the game, and AirPin captures the side-by-side output like any other frame.
+
+### Easiest: drop-in DLL
+
+Get [wiz3D](https://github.com/effcol/wiz3D), copy the matching DLL folder next to your game’s `.exe`, launch the game. Stereo turns on automatically.
+
+Works great for DirectX 9 (hundreds of games). DirectX 10/11 is growing — Tomb Raider, Hitman Absolution, Battlefield 3, and more. DirectX 12 is coming. See the wiz3D page for the full list.
+
+### Other options
+
+- [Rendepth](https://github.com/outmode/rendepth-reshade) — ReShade add-on. Works on almost any modern game. More setup, broader coverage.
+- [VRto3D](https://github.com/oneup03/VRto3D) — for games with VR mods (mostly Unreal Engine). Most setup, but true stereo with head tracking.
+
+### Note
+
+In 3D mode the mouse cursor stays a single dot, which can look odd on menus. wiz3D and Rendepth both have fixes for this.
+
+---
+
 ## Troubleshooting
 
 | Problem | Fix |
@@ -198,7 +219,7 @@ Now both play at the same latency. No echo.
 | No sound in glasses | Settings (Ctrl+Alt+S) > Sound > enable device |
 | Audio jitters/stutters | Set Windows output to 48000Hz (not 192000Hz) |
 | Audio echo vs TV | Install VB-Cable (see Audio Setup) or mute TV |
-| Black screen | Use borderless windowed mode in game |
+| Black screen | Use borderless windowed mode in game. For 3D, see [3D games](#3d-games-optional) above. |
 
 ---
 
