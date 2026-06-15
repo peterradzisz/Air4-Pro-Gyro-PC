@@ -4,12 +4,7 @@
 
 Put on the glasses. See your desktop floating in front of you. Turn your head - the screen stays where it is, like a virtual monitor pinned to the wall.
 
-| | | |
-|:---:|:---:|:---:|
-| ![Spatial pin](docs/img/spatial_3dof.png) | ![With HUD](docs/img/spatial_3dof_hud.png) | ![Settings panel](docs/img/spatial_3dof_settings.png) |
-| 3DOF spatial pin | HUD on | Settings panel |
-
-Click any thumbnail for the full-size capture in `screenshots/`.
+![3DOF spatial pin working](docs/img/spatial_3dof.png)
 
 ---
 
