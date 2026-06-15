@@ -51,44 +51,41 @@ Put on the glasses. See your desktop floating in front of you. Turn your head - 
 - **RayNeo Air 4 Pro** AR glasses
 - **HDMI + USB-A to USB-C** cable (both connections required)
 - **Windows 10/11** PC or laptop
-- **Python 3.10+** ([download here](https://www.python.org/downloads/))
+- **Python 3.10+** - [download here](https://www.python.org/downloads/) (check "Add python.exe to PATH" during install)
 
 ### 2. Download
 
 Go to **[Releases](https://github.com/peterradzisz/Air4-Pro-Gyro-PC/releases/latest)** and download the **Source code (zip)**.
 
-Or clone:
+Unzip anywhere (e.g. `C:\AirPin`). The IMU DLLs are already bundled in `lib\` - no extra downloads needed.
 
-    git clone https://github.com/peterradzisz/Air4-Pro-Gyro-PC.git
-    cd Air4-Pro-Gyro-PC
+### 3. Run setup (first time only)
 
-### 3. Install dependencies
+Double-click **`setup.bat`**. It will:
 
-    pip install -r requirements.txt
+- Verify Python is installed and the right version
+- Create a virtual environment in `.venv\`
+- Install all dependencies from `requirements.txt`
+- Verify the bundled DLLs
 
-### 4. Get the DLLs
+Takes 2-5 minutes. You only need to do this once.
 
-Head tracking requires two DLLs from [verncat/RayNeo-Air-3S-Pro-OpenVR](https://github.com/verncat/RayNeo-Air-3S-Pro-OpenVR):
-
-- **RayNeoSDK.dll** - find in the bin/ folder
-- **libusb-1.0.dll** - find in the examples/ folder
-
-Place both in the **lib/** folder.
-
-### 5. Connect the glasses
+### 4. Connect the glasses
 
 1. Plug **HDMI** into your GPU - glasses appear as a second display
 2. Plug **USB-C** into your PC - sends head tracking data
 3. Open **Windows Settings > System > Display**
 4. Set glasses to **Extend** (not Duplicate)
 
-### 6. Run
+### 5. Launch
 
-    python main.py
+Double-click **`run.bat`**. Put on the glasses. You should see your desktop. Turn your head left - the image shifts right.
 
-Put on the glasses. You should see your desktop. Turn your head left - the image shifts right.
+> Wrong screen? Press Ctrl+Alt+S, change the monitor dropdown, restart.
 
-> Wrong screen? Press Ctrl+Alt+S, change monitor dropdown, restart.
+### Updating
+
+After pulling new code, just run `run.bat` - it auto-detects missing deps and re-runs setup if needed. To force a clean install, delete the `.venv\` folder and run `setup.bat` again.
 
 ---
 

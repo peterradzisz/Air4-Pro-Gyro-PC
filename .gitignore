@@ -14,8 +14,10 @@ airpin.log
 airpin_settings.json
 *.lnk
 
-# DLLs (user must download separately)
-RayNeoSDK.dll
-libusb-1.0.dll
+# venv (created by setup.bat)
+.venv/
+
 # Screenshots: ignore user captures (Ctrl+Alt+X output), curated README thumbs live in docs/img/
 screenshots/
+
+# DLLs are now bundled in lib/ and tracked in git (see README "Get the DLLs" removal)
