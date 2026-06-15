@@ -17,3 +17,5 @@ airpin_settings.json
 # DLLs (user must download separately)
 RayNeoSDK.dll
 libusb-1.0.dll
+# Screenshots: ignore user captures (Ctrl+Alt+X output), curated README thumbs live in docs/img/
+screenshots/
