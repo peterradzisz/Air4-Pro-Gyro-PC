@@ -53,6 +53,7 @@ class SettingsPanel:
         self._font_sm = None
         self._monitors = []
         self._selected_monitor = 0
+        self._monitor_auto = settings_manager.get("target_monitor", None) is None
         self._drop_open = False
         self._hide_cursor = settings_manager.get("hide_cursor", True)
         self._yaw_range = settings_manager.get("yaw_range", 0.15)
@@ -132,8 +133,18 @@ class SettingsPanel:
 
     def update_monitors(self, monitors):
         self._monitors = monitors
-        t = settings_manager.get("target_monitor", 0)
-        self._selected_monitor = min(t, len(monitors) - 1) if monitors else 0
+        t = settings_manager.get("target_monitor", None)
+        if t is None:
+            self._monitor_auto = True
+            # Mirror main.py auto-pick logic: rightmost display
+            if monitors:
+                rightmost = max(monitors, key=lambda d: (d['x'], d['y'], d['index']))
+                self._selected_monitor = rightmost['index']
+            else:
+                self._selected_monitor = 0
+        else:
+            self._monitor_auto = False
+            self._selected_monitor = min(t, len(monitors) - 1) if monitors else 0
 
     def handle_mouse(self, mx, my, clicked):
         if not self._visible: return False
@@ -147,12 +158,26 @@ class SettingsPanel:
                 self._hide_cursor = not self._hide_cursor
                 settings_manager.set("hide_cursor", self._hide_cursor)
             return True
-        dy = 620
+        dy = 640  # was 620 — fixes 20px offset between click area and visual position
         if self._drop_open:
+            # "Auto-detect" option (first item in expanded dropdown)
+            auto_iy = dy + DROP_H
+            if DROP_X <= mx <= DROP_X + DROP_W and auto_iy <= my <= auto_iy + 28:
+                if clicked:
+                    self._monitor_auto = True
+                    settings_manager.set("target_monitor", None)
+                    # Update selected to show which one auto-pick would choose
+                    if self._monitors:
+                        rightmost = max(self._monitors, key=lambda d: (d['x'], d['y'], d['index']))
+                        self._selected_monitor = rightmost['index']
+                    self._drop_open = False
+                return True
+            # Monitor items (offset by 1 for the Auto option above)
             for i in range(len(self._monitors)):
-                iy = dy + DROP_H + i * 28
+                iy = dy + DROP_H + (i + 1) * 28
                 if DROP_X <= mx <= DROP_X + DROP_W and iy <= my <= iy + 28:
                     if clicked:
+                        self._monitor_auto = False
                         self._selected_monitor = i
                         settings_manager.set("target_monitor", i)
                         self._drop_open = False
@@ -205,8 +230,17 @@ class SettingsPanel:
                 setattr(self, "_" + k, settings_manager.get(k, 0.15))
             self._hide_cursor = settings_manager.get("hide_cursor", True)
             self._usb_reset = settings_manager.get("usb_reset", True)
-            t = settings_manager.get("target_monitor", 0)
-            self._selected_monitor = min(t, len(self._monitors) - 1) if self._monitors else 0
+            t = settings_manager.get("target_monitor", None)
+            if t is None:
+                self._monitor_auto = True
+                if self._monitors:
+                    rightmost = max(self._monitors, key=lambda d: (d['x'], d['y'], d['index']))
+                    self._selected_monitor = rightmost['index']
+                else:
+                    self._selected_monitor = 0
+            else:
+                self._monitor_auto = False
+                self._selected_monitor = min(t, len(self._monitors) - 1) if self._monitors else 0
             return True
         return False
 
@@ -285,19 +319,43 @@ class SettingsPanel:
         s.blit(self._font_sm.render("Target Monitor:", True, (170, 200, 230)), (20, y))
         y += 20
         ddy = y
-        mon = self._monitors[self._selected_monitor]["name"] if self._monitors else "No monitors"
-        mt = f"[{self._selected_monitor}] {mon}"
+        if self._monitor_auto:
+            mt = "Auto-detect (rightmost)"
+        elif self._monitors:
+            m = self._monitors[self._selected_monitor]
+            mt = f"[{self._selected_monitor}] {m['w']}x{m['h']}"
+        else:
+            mt = "No monitors"
         pygame.draw.rect(s, (50, 50, 70, 200), (DROP_X, ddy, DROP_W, DROP_H), border_radius=4)
         pygame.draw.rect(s, (80, 90, 110, 180), (DROP_X, ddy, DROP_W, DROP_H), width=1, border_radius=4)
         s.blit(self._font_sm.render(mt[:40], True, (200, 220, 255)), (DROP_X + 8, ddy + 5))
         s.blit(self._font_sm.render("v", True, (150, 160, 180)), (DROP_X + DROP_W - 20, ddy + 3))
         y += DROP_H
         if self._drop_open:
+            # Auto-detect option (first row)
+            auto_c = (40, 80, 50, 220) if self._monitor_auto else (30, 35, 50, 200)
+            pygame.draw.rect(s, auto_c, (DROP_X, y, DROP_W, 28))
+            auto_label = "★ Auto-detect" + ("  (active)" if self._monitor_auto else "")
+            s.blit(self._font_sm.render(auto_label, True, (180, 255, 180)), (DROP_X + 8, y + 5))
+            y += 28
+            # Monitor items (shifted by 1 row for Auto option)
             for i, m in enumerate(self._monitors):
-                c = (40, 60, 90, 220) if i == self._selected_monitor else (30, 35, 50, 200)
+                is_sel = (not self._monitor_auto and i == self._selected_monitor)
+                is_auto_picked = (self._monitor_auto and i == self._selected_monitor)
+                c = (40, 60, 90, 220) if (is_sel or is_auto_picked) else (30, 35, 50, 200)
                 pygame.draw.rect(s, c, (DROP_X, y, DROP_W, 28))
-                mn = m["name"]; mw = m["w"]; mh = m["h"]
-                it = self._font_sm.render(f"[{i}] {mn[:35]} {mw}x{mh}", True, (200, 220, 255))
+                # Position hint from X coordinate
+                if m.get('is_primary'):
+                    pos = "primary"
+                elif m['x'] > 0:
+                    pos = "right"
+                elif m['x'] < 0:
+                    pos = "left"
+                else:
+                    pos = "center"
+                mark = " ★auto" if is_auto_picked else ""
+                label = f"[{i}] {m['w']}x{m['h']} ({pos}){mark}"
+                s.blit(self._font_sm.render(label[:45], True, (200, 220, 255)), (DROP_X + 8, y + 5))
                 y += 28
         y = 690
         on_off = "ON" if self._hide_cursor else "OFF"
@@ -311,7 +369,7 @@ class SettingsPanel:
         usb_cc = (40, 120, 60, 180) if self._usb_reset else (100, 50, 50, 180)
         pygame.draw.rect(s, usb_cc, (20, y, DROP_W, 28), border_radius=6)
         s.blit(self._font_sm.render(usb_label, True, (220, 220, 220)), (28, y + 4))
-        s.blit(self._font_sm.render("* Restart for monitor change", True, (120, 120, 140)), (20, 758))
+        s.blit(self._font_sm.render("⚠ Restart AirPin for monitor change to take effect", True, (220, 200, 100)), (20, 758))
 
         # ── Panel 2: Display Quality ──
         p2_w = PANEL_W
