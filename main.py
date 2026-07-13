@@ -50,15 +50,24 @@ from OpenGL.GL import *
 # Module-level Windows API access
 user32 = ctypes.windll.user32
 
-# Logging setup
+# Logging setup with rotation: 1 MB per file, keep 3 backups (max 4 MB total)
 log_path = os.path.join(os.path.dirname(__file__), 'airpin.log')
-logging.basicConfig(
-    filename=log_path,
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    datefmt='%H:%M:%S'
+from logging.handlers import RotatingFileHandler
+log_handler = RotatingFileHandler(
+    log_path,
+    maxBytes=1024 * 1024,   # 1 MB per file
+    backupCount=3,           # keep airpin.log.1, .2, .3
+    encoding='utf-8'
 )
+log_handler.setFormatter(logging.Formatter(
+    '%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%H:%M:%S'
+))
+log_handler.setLevel(logging.INFO)
 log = logging.getLogger('airpin')
+log.setLevel(logging.INFO)
+log.addHandler(log_handler)
+log.propagate = False  # don't double-log to root
 
 
 def enumerate_displays():

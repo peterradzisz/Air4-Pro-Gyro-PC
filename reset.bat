@@ -22,8 +22,11 @@ if exist "airpin_settings.json" (
     del "airpin_settings.json"
 )
 
-REM --- Clear logs ---
+REM --- Clear logs (including rotated backups) ---
 if exist "airpin.log" del "airpin.log"
+if exist "airpin.log.1" del "airpin.log.1"
+if exist "airpin.log.2" del "airpin.log.2"
+if exist "airpin.log.3" del "airpin.log.3"
 
 echo.
 echo ========================================
