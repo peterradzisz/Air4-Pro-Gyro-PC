@@ -9,6 +9,15 @@ REM ============================================================
 
 cd /d "%~dp0"
 
+REM --- Unblock files downloaded from the internet (MOTW) ---
+REM Windows marks downloaded DLLs as untrusted, which can block ctypes loading.
+echo Checking for downloaded-file restrictions ^(Mark of the Web^)...
+powershell -NoProfile -Command "Get-ChildItem -Path '%~dp0' -Recurse -File | Unblock-File" >nul 2>&1
+if errorlevel 1 (
+    echo   WARNING: Could not auto-unblock files. If DLL load fails later, manually:
+    echo   Right-click the .zip ^> Properties ^> check "Unblock" ^> OK, then re-extract.
+)
+
 echo.
 echo === AirPin Extended - Setup ===
 echo.
@@ -22,6 +31,27 @@ if errorlevel 1 (
     echo   https://www.python.org/downloads/
     echo.
     echo IMPORTANT: During install, check "Add python.exe to PATH".
+    echo.
+    pause
+    exit /b 1
+)
+
+REM --- Check for Microsoft Store Python stub (zero-byte file) ---
+echo Checking Python is not the Microsoft Store stub...
+set IS_STORE_STUB=0
+for /f "delims=" %%p in ('where python') do (
+    for %%f in ("%%p") do (
+        if %%~zf LSS 1000 set IS_STORE_STUB=1
+        if %%~zf EQU 0 set IS_STORE_STUB=1
+    )
+)
+if "%IS_STORE_STUB%"=="1" (
+    echo [ERROR] Microsoft Store Python stub detected ^(zero-byte python.exe^).
+    echo This stub does not actually run Python - it opens the Store.
+    echo.
+    echo Fix: Uninstall "Python" from Settings ^> Apps, then install real Python:
+    echo   https://www.python.org/downloads/release/python-3119/
+    echo Check "Add python.exe to PATH" during install.
     echo.
     pause
     exit /b 1
@@ -46,6 +76,21 @@ if %PY_MAJOR% EQU 3 if %PY_MINOR% LSS 10 (
     exit /b 1
 )
 
+REM --- Check Python is 64-bit ---
+echo Checking Python is 64-bit...
+python -c "import struct; exit(0 if struct.calcsize('P')==8 else 1)"
+if errorlevel 1 (
+    echo [ERROR] 64-bit Python required. You have 32-bit Python.
+    echo The bundled DLLs ^(RayNeoSDK.dll, libusb-1.0.dll^) are 64-bit only.
+    echo.
+    echo Fix: Uninstall 32-bit Python, install 64-bit from:
+    echo   https://www.python.org/downloads/release/python-3119/
+    echo Choose "Windows installer (64-bit)".
+    echo.
+    pause
+    exit /b 1
+)
+
 REM --- Create venv if missing ---
 if not exist ".venv\Scripts\python.exe" (
     echo Creating virtual environment in .venv\...
@@ -65,16 +110,39 @@ echo Installing dependencies (this can take a few minutes)...
 echo.
 
 call .venv\Scripts\activate.bat
+
+REM --- Install dependencies ---
+REM dxcam has no wheels for Python 3.13+. Use --only-binary so pip fails
+REM clearly instead of attempting a source build (which needs VS Build Tools).
 python -m pip install --upgrade pip --quiet
-python -m pip install -r requirements.txt
+python -m pip install pygame-ce PyOpenGL numpy pywin32 sounddevice pyusb PyAudioWPatch soxr
+if errorlevel 1 goto :pip_failed
+python -m pip install --only-binary dxcam dxcam
 if errorlevel 1 (
+    echo.
+    echo [ERROR] dxcam has no pre-built wheel for your Python version.
+    echo dxcam 0.0.5 supports Python 3.7-3.12 only.
+    echo.
+    echo Your Python: %PY_VER%
+    echo.
+    echo Fix: Uninstall Python %PY_VER%, install Python 3.11 or 3.12 from:
+    echo   https://www.python.org/downloads/release/python-3119/
+    echo Then re-run setup.bat.
+    echo.
+    pause
+    exit /b 1
+)
+goto :pip_ok
+
+:pip_failed
     echo.
     echo [ERROR] pip install failed. See messages above.
     echo Common cause: missing Microsoft Visual C++ Build Tools.
     echo Install from: https://visualstudio.microsoft.com/visual-cpp-build-tools/
     pause
     exit /b 1
-)
+
+:pip_ok
 
 REM --- Verify DLLs ---
 echo.

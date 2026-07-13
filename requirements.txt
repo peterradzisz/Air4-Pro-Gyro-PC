@@ -1,9 +1,17 @@
+# AirPin requires Python 3.10, 3.11, or 3.12.
+# Python 3.13+ is NOT supported because dxcam (below) has no prebuilt wheel.
+# See: https://pypi.org/project/dxcam/0.0.5/#files
+#
+# setup.bat uses --only-binary for dxcam so pip fails clearly
+# instead of attempting a source build (which needs Visual Studio Build Tools).
+#
+
 pygame-ce>=2.5
 PyOpenGL>=3.1
 numpy>=1.24
 pywin32>=306
 sounddevice>=0.4
 pyusb>=1.3
-dxcam>=0.0.5
+dxcam>=0.0.5  # No wheels for Python 3.13+; pinned by setup.bat --only-binary
 PyAudioWPatch>=0.2.12
 soxr>=0.3
