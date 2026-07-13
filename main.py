@@ -138,7 +138,78 @@ def enumerate_displays():
     return results
 
 
+def preflight_checks():
+    """Safety checks before creating any overlay. Returns (passed: bool, message: str)."""
+    import config
+
+    # --- Check 1: At least 2 displays ---
+    displays = enumerate_displays()
+    if len(displays) < 2:
+        msg = (
+            f"Not enough displays ({len(displays)} found). AirPin needs your glasses as a second display.\n"
+            f"\n"
+            f"Fix:\n"
+            f"  1. Connect HDMI cable from glasses to GPU\n"
+            f"  2. Windows Settings > System > Display\n"
+            f"  3. Set glasses to 'Extend' (not 'Duplicate')\n"
+            f"  4. Run AirPin again"
+        )
+        return False, msg
+
+    # --- Check 2: At least one non-primary (extended) display ---
+    non_primary = [d for d in displays if not d['is_primary']]
+    if not non_primary:
+        msg = (
+            "No extended display found. Glasses are set to 'Duplicate' mode.\n"
+            "\n"
+            "Fix:\n"
+            "  Windows Settings > System > Display > set glasses to 'Extend'"
+        )
+        return False, msg
+
+    # --- Check 3: RayNeo glasses detected on USB ---
+    try:
+        import usb.core
+        dev = usb.core.find(idVendor=config.RAYNEO_VID, idProduct=config.RAYNEO_PID)
+        if dev is None:
+            msg = (
+                "RayNeo glasses not detected on USB.\n"
+                "\n"
+                "The HDMI cable provides the display, but the USB-C cable provides head tracking.\n"
+                "\n"
+                "Fix:\n"
+                "  1. Connect the USB-C cable from glasses to your PC\n"
+                "  2. Run AirPin again"
+            )
+            return False, msg
+    except ImportError:
+        pass  # pyusb not available — don't block, SDK will catch it
+    except Exception as e:
+        logging.warning(f"USB check failed: {e}")
+        # Don't block — the IMU tracker will handle the real error
+
+    return True, "OK"
+
+
 def main():
+    # === PREFLIGHT SAFETY CHECKS ===
+    # Run BEFORE any windows/overlays are created to prevent display corruption
+    ok, msg = preflight_checks()
+    if not ok:
+        print()
+        print("=" * 60)
+        print("  AirPin cannot start")
+        print("=" * 60)
+        print()
+        print(msg)
+        print()
+        print("=" * 60)
+        log.info(f"Preflight check failed: {msg[:80]}")
+        # Keep window open so user can read the message
+        import time
+        time.sleep(2)
+        return
+
     parser = argparse.ArgumentParser(description="AirPin for RayNeo Air 4 Pro")
     parser.add_argument("--no-imu", action="store_true")
     parser.add_argument("--no-audio", action="store_true")
