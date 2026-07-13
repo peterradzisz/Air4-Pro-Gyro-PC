@@ -8,6 +8,20 @@ Put on the glasses. See your desktop floating in front of you. Turn your head - 
 
 ---
 
+## Download
+
+### ✅ Portable Edition (recommended — no install needed)
+
+**[⬇ AirPin-portable-v1.3.1.zip](https://github.com/peterradzisz/Air4-Pro-Gyro-PC/releases/download/v1.3.1/AirPin-portable-v1.3.1.zip)** (45 MB)
+
+Includes Python and all dependencies. Just extract and double-click `run.bat`.
+
+### From source (developers)
+
+[Source code](https://github.com/peterradzisz/Air4-Pro-Gyro-PC/releases/latest) — requires Python 3.10-3.12.
+
+---
+
 ## Features
 
 **Tracking**
@@ -46,72 +60,27 @@ Put on the glasses. See your desktop floating in front of you. Turn your head - 
 
 ## Quick Start
 
-### 1. What you need
+### Portable Edition (recommended)
 
-- **RayNeo Air 4 Pro** AR glasses
-- **HDMI + USB-A to USB-C** cable (both connections required)
-- **Windows 10/11** PC or laptop
-- **Python 3.10, 3.11, or 3.12** - [download 3.11.9 here](https://www.python.org/downloads/release/python-3119/)
-- ⚠️ **Python 3.13+ does NOT work** - the screen capture library (dxcam) has no pre-built wheel for 3.13+. Use 3.11 or 3.12.
-- ⚠️ Do NOT install Python from the Microsoft Store - it doesn't actually work. Use the python.org installer and check "Add python.exe to PATH" during install.
+1. **Download** [AirPin-portable-v1.3.1.zip](https://github.com/peterradzisz/Air4-Pro-Gyro-PC/releases/download/v1.3.1/AirPin-portable-v1.3.1.zip) (45 MB)
+2. **Unblock**: Right-click `.zip` → Properties → check **Unblock** → OK
+3. **Extract** anywhere
+4. **Connect glasses**: HDMI → GPU, USB-C → PC
+5. **Set display**: Windows Settings → System → Display → glasses to **Extend**
+6. **Double-click `run.bat`**
 
-### 2. Download
+No Python installation. No setup. Just works.
 
-Go to **[Releases](https://github.com/peterradzisz/Air4-Pro-Gyro-PC/releases/latest)** and download the **Source code (zip)**.
+> 💡 If your display ever gets stuck, double-click **`reset.bat`** to fix it instantly.
 
-⚠️ **Before extracting**: Right-click the .zip > Properties > check **"Unblock"** > OK.
-Windows marks downloaded files as untrusted, which can block the bundled DLLs from loading.
-(setup.bat tries to auto-unblock, but doing it before extract is more reliable.)
+### From source (developers)
 
-Unzip anywhere (e.g. `C:\AirPin`). The IMU DLLs are already bundled in `lib\` - no extra downloads needed.
-
-### 3. Run setup (first time only)
-
-Double-click **`setup.bat`**. It will:
-
-- Verify Python is installed and the right version
-- Create a virtual environment in `.venv\`
-- Install all dependencies from `requirements.txt`
-- Verify the bundled DLLs
-
-Takes 2-5 minutes. You only need to do this once.
-
-`setup.bat` runs several checks before installing:
-- Real Python (not Microsoft Store stub)
-- 64-bit Python (DLLs are 64-bit only)
-- Python 3.10-3.12 (3.13+ incompatible with dxcam)
-- Unblocks downloaded files (MOTW)
-
-Each check shows a clear error with a fix if it fails.
-
-### 4. Connect the glasses
-
-1. Plug **HDMI** into your GPU - glasses appear as a second display
-2. Plug **USB-C** into your PC - sends head tracking data
-3. Open **Windows Settings > System > Display**
-4. Set glasses to **Extend** (not Duplicate)
-
-### 5. Launch
-
-Double-click **`run.bat`**. Put on the glasses. You should see your desktop. Turn your head left - the image shifts right.
-
-> Wrong screen? Press Ctrl+Alt+S, change the monitor dropdown, restart.
-
-### Which display is my glasses? (auto-detected)
-
-AirPin automatically picks the **rightmost display** as the glasses target.
-This works because Windows places newly-connected displays to the right by default.
-
-**If your glasses are on the LEFT** (or you want a different display):
-1. Press `Ctrl+Alt+S` to open Settings
-2. Use the monitor dropdown to pick the correct display
-3. Restart AirPin
-
-Your choice is saved and remembered next time.
-
-### Updating
-
-After pulling new code, just run `run.bat` - it auto-detects missing deps and re-runs setup if needed. To force a clean install, delete the `.venv\` folder and run `setup.bat` again.
+1. Install **Python 3.11** (64-bit) from [python.org](https://www.python.org/downloads/release/python-3119/)
+   - ⚠️ NOT 3.13+ · NOT from Microsoft Store
+2. Download **Source code** from [Releases](https://github.com/peterradzisz/Air4-Pro-Gyro-PC/releases/latest)
+3. Unblock + extract
+4. Double-click **`setup.bat`** (installs dependencies)
+5. Double-click **`run.bat`**
 
 ---
 
@@ -122,6 +91,7 @@ All shortcuts: hold **Ctrl+Alt** then press the key.
 | Key | Action | When to use |
 |-----|--------|-------------|
 | **R** | Recenter | Screen drifted |
+| **Shift+R** | Reset settings | Back to defaults |
 | **S** | Settings | Open/close settings panel |
 | **T** | Toggle tracking | Pause/resume head tracking |
 | **P** | Toggle pitch | Enable/disable vertical tracking |
@@ -237,6 +207,8 @@ In 3D mode the mouse cursor stays a single dot, which can look odd on menus. wiz
 
 | Problem | Fix |
 |---------|-----|
+| Display messed up / overlay stuck | Double-click **reset.bat** in the folder. Or press Ctrl+Alt+Q to quit, then Ctrl+Alt+Shift+R is for in-app reset. |
+| "AirPin cannot start" message | You need: HDMI cable in GPU (display) + USB-C cable in PC (tracking) + Windows set to Extend mode |
 | Head tracking not working | Check USB cable. Ctrl+Alt+R to recenter |
 | Screen drifts | Ctrl+Alt+R to recenter. Increase Deadzone. Lower Return Speed |
 | Overlay on wrong screen | Ctrl+Alt+S > change monitor > restart |

@@ -1,48 +1,46 @@
-# Install AirPin in 5 Minutes
+# Install AirPin
 
-### 1. Install Python 3.11
+## Option A: Portable (recommended)
 
-Download **Windows installer (64-bit)** from:
-https://www.python.org/downloads/release/python-3119/
+No Python needed. Just extract and run.
 
-During install, check **"Add python.exe to PATH"**.
+### 1. Download
 
-> ⚠️ Do NOT use the Microsoft Store version — it doesn't work.
+**[⬇ AirPin-portable-v1.3.1.zip](https://github.com/peterradzisz/Air4-Pro-Gyro-PC/releases/download/v1.3.1/AirPin-portable-v1.3.1.zip)** (45 MB)
 
-### 2. Download
+### 2. Unblock + Extract
 
-Go to **[Releases](https://github.com/peterradzisz/Air4-Pro-Gyro-PC/releases/latest)** → download **Source code (zip)**.
+Right-click `.zip` → Properties → **Unblock** → OK → Extract anywhere
 
-### 3. Unblock + Extract
+### 3. Connect glasses
 
-1. Right-click the `.zip` → **Properties** → check **Unblock** → OK
-2. Extract anywhere (e.g. `C:\AirPin`)
+- **HDMI** → GPU · **USB-C** → PC
+- Windows Settings → Display → **Extend**
 
-### 4. Run setup (first time only)
+### 4. Run
 
-Double-click **`setup.bat`**. Takes 3-5 minutes. That's it.
+Double-click **`run.bat`**. Done.
 
-If it shows an error, read it — every error tells you exactly what to fix.
+> Display stuck? Double-click **`reset.bat`** to fix instantly.
 
-### 5. Connect glasses
+---
 
-- **HDMI** cable → GPU (glasses appear as second display)
-- **USB-C** cable → PC (sends head tracking)
-- Windows Settings → System → Display → set glasses to **Extend**
+## Option B: From source (developers)
 
-### 6. Launch
+1. Install [Python 3.11](https://www.python.org/downloads/release/python-3119/) (64-bit, check "Add to PATH")
+2. Download **Source code** from [Releases](https://github.com/peterradzisz/Air4-Pro-Gyro-PC/releases/latest)
+3. Unblock + extract → **`setup.bat`** → **`run.bat`**
 
-Double-click **`run.bat`**. Put on the glasses.
+---
 
-### 7. Controls
+## Controls
 
 | Key | Action |
 |-----|--------|
 | Ctrl+Alt+R | Recenter |
+| Ctrl+Alt+Shift+R | Reset all settings to defaults |
 | Ctrl+Alt+S | Settings |
 | Ctrl+Alt+T | Pause tracking |
 | Ctrl+Alt+Q | Quit |
 
----
-
-**Stuck?** Read the [full README](README.md#troubleshooting) for detailed troubleshooting.
+**Stuck?** Read the [full README](README.md#troubleshooting).
