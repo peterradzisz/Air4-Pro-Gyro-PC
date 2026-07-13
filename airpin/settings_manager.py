@@ -36,7 +36,7 @@ DEFAULTS = {
     # Spatial
     "zoom":                1.0,
     # Display targeting
-    "target_monitor":       0,     # monitor index to capture and track
+    "target_monitor":       None,  # None = auto-detect (rightmost display), or 0,1,2...
     "hide_cursor":          False,  # default OFF - keep system cursor visible
     # Tracking sliders (Movies preset as default)
     "yaw_range":            1.0,

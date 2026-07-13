@@ -157,16 +157,32 @@ def main():
 
     # -- Enumerate displays --
     displays = enumerate_displays()
-    target_mon = settings_manager.get("target_monitor", 0)
+    target_mon = settings_manager.get("target_monitor", None)
     print(f"  Found {len(displays)} display(s):")
     for d in displays:
-        marker = " <-- target" if d['index'] == target_mon else ""
-        print(f"    [{d['index']}] {d['name']} @ ({d['x']},{d['y']}) {d['w']}x{d['h']}{' (primary)' if d['is_primary'] else ''}{marker}")
+        print(f"    [{d['index']}] {d['name']} @ ({d['x']},{d['y']}) {d['w']}x{d['h']}{' (primary)' if d['is_primary'] else ''}")
     
-    # Validate target_monitor
-    if target_mon >= len(displays):
-        print(f"  WARNING: target_monitor={target_mon} not found, falling back to 0")
-        target_mon = 0
+    # Auto-pick rightmost display when target_monitor is None.
+    # Windows typically places newly-extended displays to the right (highest X),
+    # so this matches user intent when glasses are added as an extended display.
+    if target_mon is None:
+        if not displays:
+            print("  ERROR: No displays found.")
+            return
+        rightmost = max(displays, key=lambda d: (d['x'], d['y'], d['index']))
+        target_mon = rightmost['index']
+        print(f"  Auto-selected rightmost display: [{target_mon}] {rightmost['name']} @ X={rightmost['x']}")
+        log.info(f"target_monitor=None, auto-picked rightmost display index={target_mon}")
+    else:
+        # Validate explicit target_monitor
+        if target_mon >= len(displays):
+            print(f"  WARNING: target_monitor={target_mon} not found, falling back to 0")
+            target_mon = 0
+    
+    # Re-print with target marker now that target_mon is finalized
+    for d in displays:
+        if d['index'] == target_mon:
+            print(f"    [{d['index']}] {d['name']} <-- target")
 
     target_disp = displays[target_mon]
     log.info(f"Displays found: {len(displays)}, target_monitor={target_mon}")
