@@ -48,6 +48,7 @@ MOD_ALT = 0x0001
 MOD_SHIFT = 0x0004
 HOTKEYS = {
     'recenter':       (MOD_CTRL | MOD_ALT, ord('R')),
+    'reset_settings': (MOD_CTRL | MOD_ALT | MOD_SHIFT, ord('R')),  # Ctrl+Alt+Shift+R
     'toggle_hud':     (MOD_CTRL | MOD_ALT, ord('H')),
     'toggle_tracking':(MOD_CTRL | MOD_ALT, ord('T')),
     'focus_game':     (MOD_CTRL | MOD_ALT | MOD_SHIFT, ord('F')),

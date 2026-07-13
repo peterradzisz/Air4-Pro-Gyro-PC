@@ -374,6 +374,7 @@ def main():
     print("\n=== AirPin Running ===")
     print("Ctrl+Alt+...")
     print("  R        Recenter        T   Track on/off")
+    print("  Shift+R  Reset settings   (back to defaults)")
     print("  P        Pitch on/off    I   Invert yaw")
     print("  Left     Add display L   Right  Add display R")
     print("  +/-      Zoom            0   Zoom reset")
@@ -446,6 +447,14 @@ def main():
             print("  Recentered!")
             log.info("Recentered")
             renderer.show_toast("Recentered")
+        if 'reset_settings' in triggered:
+            settings_manager.reset_all()
+            for k in ["yaw_range", "pitch_range", "deadzone", "gain", "decay", "edge_zoom", "snap_speed", "usb_reset"]:
+                setattr(settings_panel, "_" + k, settings_manager.get(k))
+            settings_panel._display.reset_all()
+            renderer.show_toast("Settings reset to defaults")
+            print("  Settings reset to defaults!")
+            log.info("Settings reset to defaults via Ctrl+Alt+Shift+R")
         if 'toggle_tracking' in triggered:
             tracking_enabled = not tracking_enabled
             if tracking_enabled and tracker:
