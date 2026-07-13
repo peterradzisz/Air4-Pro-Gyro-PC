@@ -3,14 +3,21 @@ setlocal
 
 REM ============================================================
 REM AirPin Extended - launcher
-REM Runs the app. If venv doesn't exist, calls setup.bat first.
+REM Uses bundled Python if available, else falls back to system Python.
 REM ============================================================
 
 cd /d "%~dp0"
 
-REM First-run: forward to setup.bat
+REM --- Portable mode: use bundled Python (no install needed) ---
+if exist "python\python.exe" (
+    "python\python.exe" main.py %*
+    endlocal
+    exit /b
+)
+
+REM --- System Python fallback (source code users) ---
 if not exist ".venv\Scripts\python.exe" (
-    echo Virtual environment not found. Running setup first...
+    echo Portable Python not found. Running setup first...
     echo.
     call setup.bat
     if errorlevel 1 exit /b 1

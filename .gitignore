@@ -20,4 +20,8 @@ airpin_settings.json
 # Screenshots: ignore user captures (Ctrl+Alt+X output), curated README thumbs live in docs/img/
 screenshots/
 
-# DLLs are now bundled in lib/ and tracked in git (see README "Get the DLLs" removal)
+# DLLs are now bundled in lib/ and tracked in git
+
+# Portable Python (built by build_portable.bat, ~190MB - distributed via Releases, not git)
+python/
+python-embed.zip
