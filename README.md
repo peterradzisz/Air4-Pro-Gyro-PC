@@ -51,11 +51,17 @@ Put on the glasses. See your desktop floating in front of you. Turn your head - 
 - **RayNeo Air 4 Pro** AR glasses
 - **HDMI + USB-A to USB-C** cable (both connections required)
 - **Windows 10/11** PC or laptop
-- **Python 3.10+** - [download here](https://www.python.org/downloads/) (check "Add python.exe to PATH" during install)
+- **Python 3.10, 3.11, or 3.12** - [download 3.11.9 here](https://www.python.org/downloads/release/python-3119/)
+- ⚠️ **Python 3.13+ does NOT work** - the screen capture library (dxcam) has no pre-built wheel for 3.13+. Use 3.11 or 3.12.
+- ⚠️ Do NOT install Python from the Microsoft Store - it doesn't actually work. Use the python.org installer and check "Add python.exe to PATH" during install.
 
 ### 2. Download
 
 Go to **[Releases](https://github.com/peterradzisz/Air4-Pro-Gyro-PC/releases/latest)** and download the **Source code (zip)**.
+
+⚠️ **Before extracting**: Right-click the .zip > Properties > check **"Unblock"** > OK.
+Windows marks downloaded files as untrusted, which can block the bundled DLLs from loading.
+(setup.bat tries to auto-unblock, but doing it before extract is more reliable.)
 
 Unzip anywhere (e.g. `C:\AirPin`). The IMU DLLs are already bundled in `lib\` - no extra downloads needed.
 
@@ -70,6 +76,14 @@ Double-click **`setup.bat`**. It will:
 
 Takes 2-5 minutes. You only need to do this once.
 
+`setup.bat` runs several checks before installing:
+- Real Python (not Microsoft Store stub)
+- 64-bit Python (DLLs are 64-bit only)
+- Python 3.10-3.12 (3.13+ incompatible with dxcam)
+- Unblocks downloaded files (MOTW)
+
+Each check shows a clear error with a fix if it fails.
+
 ### 4. Connect the glasses
 
 1. Plug **HDMI** into your GPU - glasses appear as a second display
@@ -82,6 +96,18 @@ Takes 2-5 minutes. You only need to do this once.
 Double-click **`run.bat`**. Put on the glasses. You should see your desktop. Turn your head left - the image shifts right.
 
 > Wrong screen? Press Ctrl+Alt+S, change the monitor dropdown, restart.
+
+### Which display is my glasses? (auto-detected)
+
+AirPin automatically picks the **rightmost display** as the glasses target.
+This works because Windows places newly-connected displays to the right by default.
+
+**If your glasses are on the LEFT** (or you want a different display):
+1. Press `Ctrl+Alt+S` to open Settings
+2. Use the monitor dropdown to pick the correct display
+3. Restart AirPin
+
+Your choice is saved and remembered next time.
 
 ### Updating
 
@@ -219,6 +245,11 @@ In 3D mode the mouse cursor stays a single dot, which can look odd on menus. wiz
 | Audio jitters/stutters | Set Windows output to 48000Hz (not 192000Hz) |
 | Audio echo vs TV | Install VB-Cable (see Audio Setup) or mute TV |
 | Black screen | Use borderless windowed mode in game. For 3D, see [3D games](#3d-games-optional) above. |
+| Double-click setup.bat does nothing | You have the Microsoft Store Python stub. Uninstall it, install real Python 3.11 from [python.org](https://www.python.org/downloads/release/python-3119/) |
+| "dxcam has no pre-built wheel" in setup | You have Python 3.13+. Uninstall it, install Python 3.11 or 3.12 |
+| "64-bit Python required" in setup | You have 32-bit Python. Uninstall it, install the 64-bit installer from python.org |
+| DLL load failed / WinError 126 | Right-click the .zip > Properties > Unblock > re-extract. Or run setup.bat which auto-unblocks |
+| Wrong display captured | Ctrl+Alt+S > monitor dropdown > pick glasses > restart |
 
 ---
 
