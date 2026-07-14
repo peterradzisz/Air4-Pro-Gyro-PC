@@ -25,3 +25,4 @@ screenshots/
 # Portable Python (built by build_portable.bat, ~190MB - distributed via Releases, not git)
 python/
 python-embed.zip
+airpin_display_mode.txt

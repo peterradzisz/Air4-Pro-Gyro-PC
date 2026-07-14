@@ -147,6 +147,67 @@ def enumerate_displays():
     return results
 
 
+# Global flag: did we switch display mode? Used by restore layers.
+_switched_from_duplicate = False
+_display_mode_flag_file = os.path.join(os.path.dirname(__file__), 'airpin_display_mode.txt')
+
+
+def _detect_duplicate_mode(displays):
+    """Returns True if 2+ displays share the same coordinates (clone/duplicate mode)."""
+    if len(displays) < 2:
+        return False
+    first = displays[0]
+    return all(d['x'] == first['x'] and d['y'] == first['y'] for d in displays)
+
+
+def _switch_to_extend():
+    """Switch from Duplicate to Extend mode. Returns True if successful."""
+    global _switched_from_duplicate
+    import subprocess
+    try:
+        subprocess.run('DisplaySwitch.exe /extend', shell=True, timeout=10)
+    except Exception as e:
+        logging.warning(f"DisplaySwitch.exe /extend failed: {e}")
+        return False
+    # Wait for Windows to reconfigure displays
+    import time
+    time.sleep(3)
+    # Verify the switch worked — displays should now be at different coordinates
+    new_displays = enumerate_displays()
+    if _detect_duplicate_mode(new_displays):
+        logging.warning("Display switch to Extend failed — still in duplicate mode")
+        return False
+    _switched_from_duplicate = True
+    # Write flag file so reset.bat can restore if Python crashes hard
+    try:
+        with open(_display_mode_flag_file, 'w') as f:
+            f.write('duplicate')
+    except Exception:
+        pass
+    print("  Switched from Duplicate to Extend mode automatically.")
+    log.info("Display mode switched from Duplicate to Extend")
+    return True
+
+
+def _restore_display_mode():
+    """Restore display mode to Duplicate if we changed it. Safe to call multiple times."""
+    global _switched_from_duplicate
+    if not _switched_from_duplicate:
+        return
+    import subprocess
+    try:
+        subprocess.run('DisplaySwitch.exe /clone', shell=True, timeout=10)
+        _switched_from_duplicate = False
+        log.info("Display mode restored to Duplicate")
+    except Exception as e:
+        logging.warning(f"Display restore failed: {e}")
+    # Remove flag file
+    try:
+        os.remove(_display_mode_flag_file)
+    except Exception:
+        pass
+
+
 def preflight_checks():
     """Safety checks before creating any overlay. Returns (passed: bool, message: str)."""
     import config
@@ -191,15 +252,29 @@ def preflight_checks():
         return True, "OK"
 
     # --- Multi-display mode: 2+ displays ---
-    # Require at least one non-primary (extended) display
-    non_primary = [d for d in displays if not d['is_primary']]
-    if not non_primary:
-        return False, (
-            "No extended display found. Glasses are set to 'Duplicate' mode.\n"
-            "\n"
-            "Fix:\n"
-            "  Windows Settings > System > Display > set glasses to 'Extend'"
-        )
+    # Check if in duplicate/clone mode (all displays at same coordinates)
+    if _detect_duplicate_mode(displays):
+        # Auto-switch to Extend mode
+        print("  Duplicate mode detected. Switching to Extend...")
+        if not _switch_to_extend():
+            return False, (
+                "Could not switch to Extend mode automatically.\n"
+                "\n"
+                "Fix:\n"
+                "  Press Win+P on your keyboard, select 'Extend', then run AirPin again."
+            )
+        # Re-enumerate after switch
+        displays = enumerate_displays()
+    else:
+        # Already in Extend mode — require at least one non-primary display
+        non_primary = [d for d in displays if not d['is_primary']]
+        if not non_primary:
+            return False, (
+                "No extended display found. Glasses are set to 'Duplicate' mode.\n"
+                "\n"
+                "Fix:\n"
+                "  Windows Settings > System > Display > set glasses to 'Extend'"
+            )
 
     # Require glasses on USB for head tracking
     if not glasses_on_usb:
@@ -234,6 +309,10 @@ def main():
         import time
         time.sleep(2)
         return
+
+    # Register display restore for safety (catches Ctrl+C, normal exit, most crashes)
+    import atexit
+    atexit.register(_restore_display_mode)
 
     parser = argparse.ArgumentParser(description="AirPin for RayNeo Air 4 Pro")
     parser.add_argument("--no-imu", action="store_true")
@@ -818,7 +897,11 @@ if __name__ == "__main__":
         traceback.print_exc()
         logging.critical(f"CRASH: {e}", exc_info=True)
     finally:
-        # ALWAYS restore cursor + remove virtual displays
+        # ALWAYS restore: display mode + cursor + remove virtual displays
+        try:
+            _restore_display_mode()
+        except Exception:
+            pass
         try:
             ctypes.windll.user32.SystemParametersInfoW(0x0057, 0, None, 0)
         except Exception:

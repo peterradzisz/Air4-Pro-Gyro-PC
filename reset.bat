@@ -11,6 +11,13 @@ echo Stopping AirPin...
 taskkill /F /IM python.exe >nul 2>&1
 taskkill /F /IM python3.11.exe >nul 2>&1
 
+REM --- Restore display mode if AirPin changed it ---
+if exist "airpin_display_mode.txt" (
+    echo Restoring display to Duplicate mode...
+    DisplaySwitch.exe /clone
+    del "airpin_display_mode.txt"
+)
+
 REM --- Restore system cursor ---
 echo Restoring cursor...
 python\python.exe -c "import ctypes; ctypes.windll.user32.SystemParametersInfoW(0x0057, 0, None, 0)" >nul 2>&1
