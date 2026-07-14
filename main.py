@@ -151,51 +151,67 @@ def preflight_checks():
     """Safety checks before creating any overlay. Returns (passed: bool, message: str)."""
     import config
 
-    # --- Check 1: At least 2 displays ---
+    # --- Enumerate displays ---
     displays = enumerate_displays()
-    if len(displays) < 2:
-        msg = (
-            f"Not enough displays ({len(displays)} found). AirPin needs your glasses as a second display.\n"
-            f"\n"
-            f"Fix:\n"
-            f"  1. Connect HDMI cable from glasses to GPU\n"
-            f"  2. Windows Settings > System > Display\n"
-            f"  3. Set glasses to 'Extend' (not 'Duplicate')\n"
-            f"  4. Run AirPin again"
-        )
-        return False, msg
 
-    # --- Check 2: At least one non-primary (extended) display ---
+    if len(displays) == 0:
+        return False, (
+            "No displays detected.\n"
+            "\n"
+            "Fix:\n"
+            "  Connect your glasses via HDMI to your GPU."
+        )
+
+    # --- Check glasses on USB (needed for both single and multi display paths) ---
+    glasses_on_usb = False
+    try:
+        import usb.core
+        dev = usb.core.find(idVendor=config.RAYNEO_VID, idProduct=config.RAYNEO_PID)
+        glasses_on_usb = dev is not None
+    except ImportError:
+        pass  # pyusb not available — assume glasses might be there
+    except Exception as e:
+        logging.warning(f"USB check failed: {e}")
+
+    # --- Single display mode: glasses as the ONLY display ---
+    if len(displays) == 1:
+        if not glasses_on_usb:
+            return False, (
+                f"Only 1 display detected, and RayNeo glasses not found on USB.\n"
+                f"\n"
+                f"This looks like your desktop monitor without glasses connected.\n"
+                f"\n"
+                f"Fix:\n"
+                f"  1. Connect HDMI cable from glasses to GPU (provides display)\n"
+                f"  2. Connect USB-C cable from glasses to PC (provides head tracking)\n"
+                f"  3. Run AirPin again"
+            )
+        # 1 display + glasses on USB = glasses-only mode. This is valid.
+        print("  Single display mode: glasses detected as your only display.")
+        return True, "OK"
+
+    # --- Multi-display mode: 2+ displays ---
+    # Require at least one non-primary (extended) display
     non_primary = [d for d in displays if not d['is_primary']]
     if not non_primary:
-        msg = (
+        return False, (
             "No extended display found. Glasses are set to 'Duplicate' mode.\n"
             "\n"
             "Fix:\n"
             "  Windows Settings > System > Display > set glasses to 'Extend'"
         )
-        return False, msg
 
-    # --- Check 3: RayNeo glasses detected on USB ---
-    try:
-        import usb.core
-        dev = usb.core.find(idVendor=config.RAYNEO_VID, idProduct=config.RAYNEO_PID)
-        if dev is None:
-            msg = (
-                "RayNeo glasses not detected on USB.\n"
-                "\n"
-                "The HDMI cable provides the display, but the USB-C cable provides head tracking.\n"
-                "\n"
-                "Fix:\n"
-                "  1. Connect the USB-C cable from glasses to your PC\n"
-                "  2. Run AirPin again"
-            )
-            return False, msg
-    except ImportError:
-        pass  # pyusb not available — don't block, SDK will catch it
-    except Exception as e:
-        logging.warning(f"USB check failed: {e}")
-        # Don't block — the IMU tracker will handle the real error
+    # Require glasses on USB for head tracking
+    if not glasses_on_usb:
+        return False, (
+            "RayNeo glasses not detected on USB.\n"
+            "\n"
+            "The HDMI cable provides the display, but the USB-C cable provides head tracking.\n"
+            "\n"
+            "Fix:\n"
+            "  1. Connect the USB-C cable from glasses to your PC\n"
+            "  2. Run AirPin again"
+        )
 
     return True, "OK"
 
