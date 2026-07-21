@@ -306,7 +306,6 @@ def main():
         print("=" * 60)
         log.info(f"Preflight check failed: {msg[:80]}")
         # Keep window open so user can read the message
-        import time
         time.sleep(2)
         return
 
