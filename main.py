@@ -1,5 +1,5 @@
 """
-AirPin — Multi-monitor AR workspace for RayNeo Air 4 Pro.
+AirPin — Multi-monitor AR workspace for supported RayNeo glasses.
 
 Creates virtual displays via Parsec VDD. Windows natively manages
 cursor movement between monitors. Each monitor is captured via DXGI
@@ -223,14 +223,37 @@ def preflight_checks():
             "  Connect your glasses via HDMI to your GPU."
         )
 
-    # --- Check glasses on USB (needed for both single and multi display paths) ---
+    # --- Check supported glasses on USB (needed for both display paths) ---
     glasses_on_usb = False
     try:
         import usb.core
-        dev = usb.core.find(idVendor=config.RAYNEO_VID, idProduct=config.RAYNEO_PID)
-        glasses_on_usb = dev is not None
+        import usb.backend.libusb1
+        import usb.util
+
+        # Prefer the bundled libusb backend in portable builds.
+        libusb_path = os.path.join(os.path.dirname(__file__), "lib", "libusb-1.0.dll")
+        backend = None
+        if os.path.isfile(libusb_path):
+            backend = usb.backend.libusb1.get_backend(find_library=lambda _name: libusb_path)
+
+        for candidate in config.RAYNEO_DEVICES:
+            dev = usb.core.find(
+                idVendor=candidate["vid"], idProduct=candidate["pid"], backend=backend
+            )
+            if dev is not None:
+                config.select_rayneo_device(candidate)
+                glasses_on_usb = True
+                try:
+                    usb.util.dispose_resources(dev)
+                except Exception:
+                    pass
+                print(
+                    f"  {candidate['name']} detected on USB "
+                    f"({candidate['vid']:04X}:{candidate['pid']:04X})."
+                )
+                break
     except ImportError:
-        pass  # pyusb not available — assume glasses might be there
+        pass
     except Exception as e:
         logging.warning(f"USB check failed: {e}")
 
@@ -313,7 +336,7 @@ def main():
     import atexit
     atexit.register(_restore_display_mode)
 
-    parser = argparse.ArgumentParser(description="AirPin for RayNeo Air 4 Pro")
+    parser = argparse.ArgumentParser(description="AirPin for RayNeo glasses")
     parser.add_argument("--no-imu", action="store_true")
     parser.add_argument("--no-audio", action="store_true")
     parser.add_argument("--monitor", type=int, default=0)
@@ -400,7 +423,7 @@ def main():
 
     tracker = None
     if not args.no_imu:
-        print("Connecting to RayNeo Air 4 Pro...")
+        print(f"Connecting to {config.RAYNEO_DEVICE_NAME}...")
         tracker = ImuTracker()
         try:
             tracker.start()
@@ -835,7 +858,7 @@ def main():
                     panels_to_draw = list(panel_result)
                 for i, pdata in enumerate(panels_to_draw):
                     surf, px, py, pw, ph = pdata
-                    data = pygame.image.tostring(surf, "RGBA", True)
+                    data = pygame.image.tobytes(surf, "RGBA", True)
                     tex_id_name = f"_gl_tex_{i}"
                     tex_id = getattr(settings_panel, tex_id_name, None)
                     if tex_id is None:

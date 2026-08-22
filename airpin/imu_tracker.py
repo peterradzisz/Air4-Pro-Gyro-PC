@@ -1,5 +1,5 @@
 """
-IMU tracker for RayNeo Air 4 Pro.
+IMU tracker for supported RayNeo glasses.
 Reads gyro/accel via RayNeoSDK.dll, fuses into yaw/pitch/roll.
 """
 
@@ -190,6 +190,30 @@ class ImuTracker:
                 return p
         return None
 
+    def _configure_sdk_target(self, ctx):
+        """Configure VID/PID and, when required, an exact USB interface."""
+        rc = self.sdk.Rayneo_SetTargetVidPid(ctx, config.RAYNEO_VID, config.RAYNEO_PID)
+        if rc != 0:
+            raise RuntimeError(f"Rayneo_SetTargetVidPid failed: rc={rc}")
+
+        interface_number = config.RAYNEO_INTERFACE
+        if interface_number is None:
+            return
+
+        setter = getattr(self.sdk, "Rayneo_SetTargetInterface", None)
+        if setter is not None:
+            setter.restype = c_int
+            setter.argtypes = [c_void_p, c_int]
+            rc = setter(ctx, int(interface_number))
+            if rc != 0:
+                raise RuntimeError(f"Rayneo_SetTargetInterface({interface_number}) failed: rc={rc}")
+            logging.info("RayNeo target interface set via SDK API: %d", interface_number)
+            return
+
+        raise RuntimeError(
+            "RayNeo GT requires RayNeoSDK API 1.3+ with Rayneo_SetTargetInterface"
+        )
+
     def start(self):
         dll_path = self._find_dll()
         if not dll_path:
@@ -224,9 +248,15 @@ class ImuTracker:
         self.ctx = c_void_p()
         if s.Rayneo_Create(byref(self.ctx)) != 0:
             raise RuntimeError("Rayneo_Create failed")
-        s.Rayneo_SetTargetVidPid(self.ctx, config.RAYNEO_VID, config.RAYNEO_PID)
+        try:
+            self._configure_sdk_target(self.ctx)
+        except Exception:
+            s.Rayneo_Destroy(self.ctx)
+            self.ctx = None
+            raise
         if s.Rayneo_Start(self.ctx, 0) != 0:
             s.Rayneo_Destroy(self.ctx)
+            self.ctx = None
             raise RuntimeError("Rayneo_Start failed (glasses not connected?)")
         s.Rayneo_EnableImu(self.ctx)
 
@@ -410,11 +440,11 @@ class ImuTracker:
                     pass
 
     def _usb_reset(self):
-        """Programmatically disable and re-enable the USB device (VID=0x1BBB PID=0xAF50).
+        """Programmatically disable and re-enable the currently selected RayNeo USB device.
         Uses PowerShell Disable-PnpDevice / Enable-PnpDevice.
-        Requires admin rights. Safe: only targets the specific VID/PID.
+        Requires admin rights. Safe: only targets the selected VID/PID.
         """
-        vid_pid = "VID_1BBB*PID_AF50"
+        vid_pid = f"VID_{config.RAYNEO_VID:04X}*PID_{config.RAYNEO_PID:04X}"
         try:
             # Step 1: Find the instance ID
             ps_cmd = (
@@ -482,7 +512,14 @@ class ImuTracker:
                 if self.sdk.Rayneo_Create(byref(ctx)) != 0:
                     print(f"  Reconnect attempt {attempt}/3: Create failed")
                     continue
-                self.sdk.Rayneo_SetTargetVidPid(ctx, config.RAYNEO_VID, config.RAYNEO_PID)
+                try:
+                    self._configure_sdk_target(ctx)
+                except Exception:
+                    try:
+                        self.sdk.Rayneo_Destroy(ctx)
+                    except Exception:
+                        pass
+                    raise
                 if self.sdk.Rayneo_Start(ctx, 0) != 0:
                     print(f"  Reconnect attempt {attempt}/3: Start failed")
                     try:

@@ -2,9 +2,26 @@
 Global configuration for AirPin.
 """
 
-# RayNeo Air 4 Pro USB IDs
-RAYNEO_VID = 0x1BBB
-RAYNEO_PID = 0xAF50
+# Supported RayNeo glasses.
+RAYNEO_DEVICES = (
+    {"name": "RayNeo Air 4 Pro", "vid": 0x1BBB, "pid": 0xAF50, "interface": None},
+    {"name": "RayNeo GT",        "vid": 0x3941, "pid": 0xAF50, "interface": 5},
+)
+
+RAYNEO_DEVICE_NAME = RAYNEO_DEVICES[0]["name"]
+RAYNEO_VID = RAYNEO_DEVICES[0]["vid"]
+RAYNEO_PID = RAYNEO_DEVICES[0]["pid"]
+RAYNEO_INTERFACE = RAYNEO_DEVICES[0]["interface"]
+
+
+def select_rayneo_device(device):
+    """Select a device profile detected during preflight."""
+    global RAYNEO_DEVICE_NAME, RAYNEO_VID, RAYNEO_PID, RAYNEO_INTERFACE
+    RAYNEO_DEVICE_NAME = device["name"]
+    RAYNEO_VID = device["vid"]
+    RAYNEO_PID = device["pid"]
+    RAYNEO_INTERFACE = device["interface"]
+
 
 # Path to RayNeoSDK.dll (auto-detected)
 SDK_DLL_PATH = None  # set at runtime
